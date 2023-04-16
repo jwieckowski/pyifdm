@@ -3,6 +3,7 @@
 from .codas.ifs import ifs
 from .ifs.normalization import swap_normalization
 from .ifs.distance import euclidean_distance, hamming_distance
+from ..helpers import rank
 
 from .validator import Validator
 
@@ -32,6 +33,7 @@ class ifCODAS():
         self.distance_1 = distance_1
         self.distance_2 = distance_2
         self.tau = tau
+        self.__descending = True
 
     def __call__(self, matrix, weights, types):
         """
@@ -58,4 +60,21 @@ class ifCODAS():
         # validate data
         Validator.ifs_validation(matrix, weights, types, mixed_types=True)
 
-        return ifs(matrix, weights, types, self.normalization, self.distance_1, self.distance_2, self.tau).astype(float)
+        self.preferences = ifs(matrix, weights, types, self.normalization, self.distance_1, self.distance_2, self.tau).astype(float)
+        return self.preferences
+
+    def rank(self):
+        """
+            Calculates the alternatives ranking based on the obtained preferences
+
+            Returns
+            ----------
+                ndarray:
+                    Ranking of alternatives
+        """
+        try:
+            return rank(self.preferences, self.__descending)
+        except AttributeError:
+            raise AttributeError('Cannot calculate ranking before assessment')
+        except:
+            raise ValueError('Error occurred in ranking calculation')

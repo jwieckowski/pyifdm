@@ -1,7 +1,9 @@
 # Copyright (c) 2022 Jakub Więckowski
 
+import numpy as np
 from .vikor.ifs import ifs
 from .ifs.distance import hamming_distance
+from ..helpers import rank
 
 from .validator import Validator
 
@@ -26,6 +28,7 @@ class ifVIKOR():
         self.normalization = normalization
         self.distance = distance
         self.v = v
+        self.__descending = False
 
     def __call__(self, matrix, weights, types):
         """
@@ -51,5 +54,21 @@ class ifVIKOR():
         # validate data
         Validator.ifs_validation(matrix, weights, types)
 
-        return ifs(matrix, weights, types, self.normalization, self.distance, self.v)
+        self.preferences = ifs(matrix, weights, types, self.normalization, self.distance, self.v)
+        return self.preferences
 
+    def rank(self):
+        """
+            Calculates the alternatives ranking based on the obtained preferences
+
+            Returns
+            ----------
+                ndarray:
+                    Ranking of alternatives for the S, R, Q approaches
+        """
+        try:
+            return np.array([rank(pref, self.__descending) for pref in self.preferences])
+        except AttributeError:
+            raise AttributeError('Cannot calculate ranking before assessment')
+        except:
+            raise ValueError('Error occurred in ranking calculation')

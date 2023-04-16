@@ -60,6 +60,7 @@ def test_ifARAS():
     reference_results = np.array([0.9438, 0.9550, 0.9514, 0.9623, 0.9377])
     
     assert all(rank(results) == rank(reference_results))
+    assert all(if_aras.rank() == rank(reference_results))
 
 def test_ifCODAS():
     """
@@ -89,6 +90,7 @@ def test_ifCODAS():
     reference_results = np.array([0.564, 2.328, -3.002, -3.571, 3.681])
 
     assert all(rank(results) == rank(reference_results))
+    assert all(if_codas.rank() == rank(reference_results))
 
 def test_ifCOPRAS():
     """
@@ -111,6 +113,7 @@ def test_ifCOPRAS():
     reference_results = np.array([1.000, 1.096, 1.320, 1.086])
 
     assert all(np.round(results, 3) == reference_results)
+    assert all(if_copras.rank() == rank(reference_results))
 
 def test_ifEDAS():
     """
@@ -134,6 +137,7 @@ def test_ifEDAS():
     reference_results = np.array([0.003, 0.881, 0.348, 0.251, 0.363])
 
     assert all(np.round(results, 3) == reference_results)
+    assert all(if_edas.rank() == rank(reference_results))
 
 def test_ifMABAC():
     """
@@ -156,6 +160,7 @@ def test_ifMABAC():
     reference_ranking = np.array([3, 1, 5, 2, 4])
 
     assert all(rank(results) == reference_ranking)
+    assert all(if_mabac.rank() == reference_ranking)
 
 def test_ifMAIRCA():
     """
@@ -185,6 +190,7 @@ def test_ifMAIRCA():
     reference_results = np.array([0.095, 0.078, 0.078, 0.126, 0.103])
 
     assert all(np.round(results, 3) == reference_results)
+    assert all(if_mairca.rank() == [3, 4, 5, 1, 2])
 
 def test_ifMOORA():
     """
@@ -213,6 +219,7 @@ def test_ifMOORA():
     reference_ranking = np.array([1, 2, 3, 5, 4])
 
     assert all(rank(results) == reference_ranking)
+    assert all(if_moora.rank() == reference_ranking)
 
 def test_ifTOPSIS():
     """
@@ -241,6 +248,7 @@ def test_ifTOPSIS():
     reference_results = np.array([0.27, 0.65, 0.66, 0.41])
 
     assert all(np.round(results, 2) == reference_results)
+    assert all(if_topsis.rank() == rank(reference_results))
 
 def test_ifVIKOR():
     """
@@ -265,6 +273,11 @@ def test_ifVIKOR():
     reference_R = np.array([0.1980, 0.2129, 0.1950, 0.1976])
     reference_Q = np.array([0.2671, 0.8972, 0.0000, 0.5726])
 
-    assert all(rank(results[0]) == rank(reference_S))
-    assert all(rank(results[1]) == rank(reference_R))
-    assert all(rank(results[2]) == rank(reference_Q))
+    assert all(rank(results[0], False) == rank(reference_S, False))
+    assert all(rank(results[1], False) == rank(reference_R, False))
+    assert all(rank(results[2], False) == rank(reference_Q, False))
+
+    ranks = if_vikor.rank()
+    assert all(ranks[0] == rank(reference_S, False))
+    assert all(ranks[1] == rank(reference_R, False))
+    assert all(ranks[2] == rank(reference_Q, False))

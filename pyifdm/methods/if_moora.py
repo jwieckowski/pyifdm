@@ -2,6 +2,7 @@
 
 from .moora.ifs import ifs
 from .ifs.score import zhang_xu_score_2
+from ..helpers import rank
 
 from .validator import Validator
 
@@ -22,6 +23,7 @@ class ifMOORA():
 
         self.normalization = normalization
         self.score = score
+        self.__descending = True
 
     def __call__(self, matrix, weights, types):
         """
@@ -48,4 +50,21 @@ class ifMOORA():
         # validate data
         Validator.ifs_validation(matrix, weights, types, mixed_types=True)
 
-        return ifs(matrix, weights, types, self.normalization, self.score).astype(float)
+        self.preferences = ifs(matrix, weights, types, self.normalization, self.score).astype(float)
+        return self.preferences
+
+    def rank(self):
+        """
+            Calculates the alternatives ranking based on the obtained preferences
+
+            Returns
+            ----------
+                ndarray:
+                    Ranking of alternatives
+        """
+        try:
+            return rank(self.preferences, self.__descending)
+        except AttributeError:
+            raise AttributeError('Cannot calculate ranking before assessment')
+        except:
+            raise ValueError('Error occurred in ranking calculation')
