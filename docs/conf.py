@@ -13,21 +13,32 @@ sys.path.insert(0, os.path.abspath('../'))
 
 project = 'PyIFDM'
 copyright = '2023, Jakub Więckowski'
-author = 'Jakub Więckowski'
-release = '1.0.0'
+author = 'Jakub Więckowski, Bartłomiej Kizielewicz'
+release = '1.1.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
+    'myst_parser', 
+    'nbsphinx',
+    'sphinx_rtd_theme',
     'sphinx.ext.autodoc',
     'sphinx.ext.autosectionlabel',
     'sphinx.ext.viewcode',
     'sphinx.ext.napoleon'
 ]
 
+source_suffix = {
+    '.rst': 'restructuredtext',
+    '.txt': 'markdown',
+    '.md': 'markdown',
+}
+
 templates_path = ['_templates']
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ['_build', 'Thumbs.db',
+                    '.DS_Store', '**.ipynb_checkpoints',
+                    'requirements.txt']
 
 # Napoleon settings
 napoleon_google_docstring = True
@@ -52,4 +63,5 @@ napoleon_include_init_with_doc = True
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = 'sphinx_rtd_theme'
+html_theme_path = ["_themes", ]
 html_static_path = ['_static']
