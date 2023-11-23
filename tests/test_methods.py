@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2023 Jakub Więckowski
+# Copyright (c) 2022-2023 Jakub Więckowski, Bartłomiej Kizielewicz
 
 import numpy as np
 from pyifdm.methods import *
@@ -395,4 +395,30 @@ def test_ifWSM():
     assert all(rank(results) == reference_ranking)
     assert all(if_wsm.rank() == reference_ranking)
 
+def test_ifWASPAS():
+    """
+            Test verifying correctness of the Intuitionistic Fuzzy WASPAS
+            Reference value: Mishra, A. R., Singh, R. K., & Motwani, D. (2019). Multi-criteria assessment of cellular mobile telephone service providers using intuitionistic fuzzy WASPAS method with similarity measures. Granular Computing, 4, 511-529.
+        """
 
+    v = 0.5
+    matrix = np.array([
+        [(0.6268, 0.2794), (0.5987, 0.3323), (0.7585, 0.1520), (0.2709, 0.6292), (0.4841, 0.4452), (0.1392, 0.8182), (0.6958, 0.2094), (0.5743, 0.3682)],
+        [(0.4520, 0.4711), (0.6728, 0.2196), (0.7207, 0.1866), (0.1020, 0.8858), (0.1500, 0.8017), (0.3508, 0.5584), (0.5935, 0.3042), (0.5346, 0.4087)],
+        [(0.1050, 0.8538), (0.0774, 0.9226), (0.6874, 0.2157), (0.1970, 0.7652), (0.4596, 0.4505), (0.5343, 0.4121), (0.3393, 0.5668), (0.1498, 0.7599)],
+        [(0.2575, 0.6433), (0.1673, 0.7376), (0.7207, 0.1866), (0.4160, 0.5038), (0.4841, 0.4452), (0.1190, 0.8702), (0.8330, 0.1301), (0.1259, 0.8351)],
+        [(0.2181, 0.6829), (0.0774, 0.9226), (0.6164, 0.2930), (0.5278, 0.4182), (0.2516, 0.6476), (0.0912, 0.8934), (0.8162, 0.1474), (0.1696, 0.7357)]
+    ])
+    weights = np.array([0.1471, 0.1618, 0.0882, 0.1280, 0.1105, 0.1132, 0.1132, 0.1379])
+    types = np.array([-1, -1, 1, -1, -1, -1, 1, -1])
+    norm = lambda vec, types: vec
+
+    if_waspas = ifWASPAS(v=v)
+    results = if_waspas(matrix, weights, types)
+
+    reference_Q = np.array([0.5507, 0.4720, 0.2984, 0.3946, 0.3407])
+
+    assert all(rank(results, False) == rank(reference_Q, False))
+
+    ranks = if_waspas.rank()
+    assert all(ranks == rank(reference_Q, False))

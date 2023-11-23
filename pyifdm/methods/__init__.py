@@ -9,6 +9,7 @@ from .if_moora import ifMOORA
 from .if_ocra import ifOCRA
 from .if_topsis import ifTOPSIS
 from .if_vikor import ifVIKOR
+from .if_waspas import ifWASPAS
 from .if_wpm import ifWPM
 from .if_wsm import ifWSM
 from .ifs import *
