@@ -44,7 +44,7 @@ class ifOCRA():
                 Preference calculated for alternatives. Greater values are placed higher in ranking
         """
         # validate data
-        Validator.ifs_validation(matrix, weights, types)
+        Validator.ifs_validation(matrix, weights, types, crisp_weights=True)
 
         self.preferences = ifs(matrix, weights, types, self.score).astype(float)
         return self.preferences

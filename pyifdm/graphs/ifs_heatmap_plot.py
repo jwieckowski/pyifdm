@@ -70,13 +70,3 @@ def ifs_heatmap_plot(ifs_matrix, cmap='Blues', labels=None, ax=None):
     cbar.set_label('Degree of Belief')
 
     return ax
-
-# Example Usage
-ifs_matrix_example = [
-    [0.6, 0.2, 0.2],
-    [0.8, 0.1, 0.1],
-    [0.4, 0.3, 0.3]
-]
-# labels_example = ['Set 1', 'Set 2', 'Set 3']
-ifs_heatmap_plot(ifs_matrix_example, labels=None)
-plt.show()

@@ -100,14 +100,14 @@ pytest tests
 
 - IFS-similarity measures:
 
-| Name            |   Reference    |
-| --------------- | :------------: |
-| Chen similarity | [[38]](#ref38) |
-| Chen similarity | [[38]](#ref38) |
-| Chen similarity | [[38]](#ref38) |
-| Chen similarity | [[38]](#ref38) |
-| Chen similarity | [[38]](#ref38) |
-| Chen similarity | [[38]](#ref38) |
+| Name                 |   Reference    |
+| -------------------- | :------------: |
+| Chen similarity      | [[38]](#ref38) |
+| Fan-Zhang similarity | [[38]](#ref38) |
+| Hong-Kim similarity  | [[38]](#ref38) |
+| Li similarity        | [[38]](#ref38) |
+| Li-Xu similarity     | [[38]](#ref38) |
+| Ye similarity        | [[38]](#ref38) |
 
 - Correlation coefficients:
 

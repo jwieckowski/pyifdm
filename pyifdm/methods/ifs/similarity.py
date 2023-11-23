@@ -4,10 +4,10 @@ import numpy as np
 
 __all__ = [
     'chen_similarity',
-    'hong_kim_similarity',
-    'li_xu_similarity',
     'fan_zhang_similarity',
+    'hong_kim_similarity',
     'li_similarity',
+    'li_xu_similarity',
     'ye_similarity'
 ]
 

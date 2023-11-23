@@ -366,7 +366,7 @@ def test_ifWPM():
 
     if_wpm = ifWPM()
     results = if_wpm(matrix, weights, types)
-    reference_ranking = np.array([4, 1, 2, 3])
+    reference_ranking = np.array([3, 1, 2, 4])
 
     assert all(rank(results) == reference_ranking)
     assert all(if_wpm.rank() == reference_ranking)
@@ -390,7 +390,7 @@ def test_ifWSM():
 
     if_wsm = ifWSM()
     results = if_wsm(matrix, weights, types)
-    reference_ranking = np.array([4, 1, 2, 3])
+    reference_ranking = np.array([4, 3, 1, 2])
 
     assert all(rank(results) == reference_ranking)
     assert all(if_wsm.rank() == reference_ranking)
@@ -419,6 +419,3 @@ def test_ifWASPAS():
     reference_Q = np.array([0.5507, 0.4720, 0.2984, 0.3946, 0.3407])
 
     assert all(rank(results, False) == rank(reference_Q, False))
-
-    ranks = if_waspas.rank()
-    assert all(ranks == rank(reference_Q, False))

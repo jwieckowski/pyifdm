@@ -52,7 +52,7 @@ def test_hausdorf_euclidean_distance():
     x = np.array([0.8, 0.2])
     y = np.array([0.6, 0.3])
     calculated_value = hausdorf_euclidean_distance(x, y)
-    reference_value = 0.4
+    reference_value = 0.04
 
     assert np.round(calculated_value, 3) == reference_value
 

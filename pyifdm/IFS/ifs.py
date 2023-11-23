@@ -106,8 +106,8 @@ class IFS:
         """
         
         membership = self.membership + other.membership - self.membership * other.membership
-        non_membership = self.non_membership - other.non-membership
-        uncertainty = 1 - (membership + non_membership)
+        non_membership = self.non_membership - other.non_membership
+        uncertainty = np.max([1 - (membership + non_membership), 0])
 
         return IFS(membership, non_membership, uncertainty)
 
@@ -125,8 +125,8 @@ class IFS:
         
         if self.non_membership / other.non_membership <= ((1 - self.membership) / (1 - other.membership)):
             membership = (self.membership - other.membership) / (1 - other.membership)
-            non_membership = self.non_membership / other.non-membership
-            uncertainty = 1 - (membership + non_membership)
+            non_membership = self.non_membership / other.non_membership
+            uncertainty = np.max([1 - (membership + non_membership), 0])
             
             return IFS(membership, non_membership, uncertainty)
         else:
@@ -146,7 +146,7 @@ class IFS:
         
         membership = self.membership * other.membership
         non_membership = self.non_membership + other.non_membership - self.non_membership * other.non_membership
-        uncertainty = 1 - (membership + non_membership)
+        uncertainty = np.max([1 - (membership + non_membership), 0])
 
         return IFS(membership, non_membership, uncertainty)
 
@@ -165,7 +165,7 @@ class IFS:
         if self.membership / other.membership <= ((1 - self.non_membership) / (1 - other.non_membership)):
             membership = self.membership / other.membership
             non_membership = (self.non_membership - other.non_membership) / (1 - other.non_membership)
-            uncertainty = 1 - (membership + non_membership)
+            uncertainty = np.max([1 - (membership + non_membership), 0])
             
             return IFS(membership, non_membership, uncertainty)
         else:
@@ -188,7 +188,7 @@ class IFS:
 
         membership = self.membership ** y
         non_membership = 1 - (1 - self.non_membership) ** y
-        uncertainty = 1 - (membership + non_membership)
+        uncertainty = np.max([1 - (membership + non_membership), 0])
 
         return IFS(membership, non_membership, uncertainty)
 
@@ -206,7 +206,7 @@ class IFS:
 
         membership = min(self.membership, other.membership)
         non_membership = max(self.non_membership, other.non_membership)
-        uncertainty = 1 - (membership + non_membership)
+        uncertainty = np.max([1 - (membership + non_membership), 0])
 
         return IFS(membership, non_membership, uncertainty)
 
@@ -224,7 +224,7 @@ class IFS:
     
         membership = max(self.membership, other.membership)
         non_membership = min(self.non_membership, other.non_membership)
-        uncertainty = 1 - (membership + non_membership)
+        uncertainty = np.max([1 - (membership + non_membership), 0])
         
         return IFS(membership, non_membership, uncertainty)
 

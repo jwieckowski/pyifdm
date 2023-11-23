@@ -24,6 +24,13 @@ def ifs(matrix, weights, types):
 
     """
 
+    if matrix.shape[2] == 2:
+        new_matrix = np.zeros((matrix.shape[0], matrix.shape[1], matrix.shape[2] + 1))
+        new_matrix[:, :, 0] = matrix[:, :, 0]
+        new_matrix[:, :, 1] = matrix[:, :, 1]
+        new_matrix[:, :, 2] = 1 - (matrix[:, :, 0] + matrix[:, :, 1])  
+        matrix = new_matrix
+
     # aggregated IF decision matrix
     matrix_p =  np.sqrt((matrix[:, :, 0] - 1)**2 + (matrix[:, :, 1] - 0)**2 + (matrix[:, :, 2] - 0)**2)
     matrix_m =  np.sqrt((matrix[:, :, 0] - 0)**2 + (matrix[:, :, 1] - 1)**2 + (matrix[:, :, 2] - 0)**2)

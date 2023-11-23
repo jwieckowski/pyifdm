@@ -42,7 +42,7 @@ def ecer_normalization(matrix, types):
     
     return nmatrix.astype(float)
 
-def minmax_normalization(matrix, types):
+def max_normalization(matrix, types):
     """
         Calculates the normalized value of Intuitionistic Fuzzy matrix using Max normalization
 

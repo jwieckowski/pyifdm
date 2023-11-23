@@ -37,13 +37,17 @@ def ifs(matrix, weights, types, normalization, score):
     else:
         nmatrix = matrix.copy()
 
+    # crisp weights
+    if weights.ndim == 1:
+        weights = np.repeat(weights, 2).reshape((len(weights), 2))
+
     # weighted decision matrix
     wmatrix = matrix.copy()
-    wmatrix[:, :, 0] = nmatrix[:, :, 0] ** weights
-    wmatrix[:, :, 1] = 1 - (1 - nmatrix[:, :, 1])** weights
+    wmatrix[:, :, 0] = nmatrix[:, :, 0] ** weights[:, 0]
+    wmatrix[:, :, 1] = 1 - (1 - nmatrix[:, :, 1])** weights[:, 1]
 
     # product
-    Q  = np.prod(wmatrix, axis=0)
+    Q  = np.prod(wmatrix, axis=1)
     
     # assessment score
     return np.array([score(q) for q in Q])

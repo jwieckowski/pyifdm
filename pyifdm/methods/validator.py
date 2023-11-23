@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Jakub Więckowski
+# Copyright (c) 2022-2023 Jakub Więckowski
 
 import numpy as np
 
@@ -54,7 +54,7 @@ class Validator():
                 'IFS matrix elements should all have length of 2 or 3')
 
     @staticmethod
-    def validate_weights(weights):
+    def validate_weights(weights, crisp_weights=False):
         """
         For crisp weights checks if sum of weights equals 1
         For fuzzy weights checks if given as IFS
@@ -64,12 +64,19 @@ class Validator():
             weights : ndarray
                 Vector of weights in a crisp form or as a IFS array
 
+            crisp_weights : bool
+                Flag to check if only crisp weights are acceptable
+
         Returns
         -------
             raises:
                 ValueError if sum of weights is different than 1 or not in IFS form
 
         """
+
+        if crisp_weights:
+            if np.array(weights).ndim != 1:
+                raise ValueError('Weights should be given as crisp values')
 
         if isinstance(weights[0], np.float_):
             if np.round(np.sum(weights), 3) != 1:
@@ -101,7 +108,7 @@ class Validator():
             raise ValueError('Criteria types should not be the same')
 
     @staticmethod
-    def ifs_validation(matrix, weights, types, mixed_types=False):
+    def ifs_validation(matrix, weights, types, mixed_types=False, crisp_weights=False):
         """
         Runs all validations for the fuzzy IFS extension
 
@@ -120,6 +127,9 @@ class Validator():
             mixed_types : boolean, default=False
                 Flag to determine if types array must be mixed
 
+            crisp_weights : bool
+                Flag to check if only crisp weights are acceptable
+
         Returns
         -------
             raises:
@@ -128,7 +138,7 @@ class Validator():
         """
         Validator.validate_input(matrix, weights, types)
         Validator.validate_ifs_matrix(matrix)
-        Validator.validate_weights(weights)
+        Validator.validate_weights(weights, crisp_weights)
         if mixed_types:
             Validator.validate_types(types)
 
