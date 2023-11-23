@@ -40,6 +40,28 @@ def test_ecer_normalization():
 
     assert np.alltrue(np.round(calculated_matrix, 3) == reference_matrix)
 
+def test_max_normalization():
+    """
+        Test veryfing correctness of the Max normalization formula.
+        Formula: Ecer, F. (2022). An extended MAIRCA method using intuitionistic fuzzy sets for coronavirus vaccine selection in the age of COVID-19. Neural Computing and Applications, 34(7), 5603-5623.
+        Reference value: Ecer, F. (2022). An extended MAIRCA method using intuitionistic fuzzy sets for coronavirus vaccine selection in the age of COVID-19. Neural Computing and Applications, 34(7), 5603-5623.
+    """
+    matrix = np.array([
+        [[1.00, 0.00], [0.60, 0.28], [0.39, 0.49], [0.59, 0.31], [0.80, 0.15], [0.15, 0.70], [0.75, 0.19], [1.00, 0.00], [0.47, 0.43], [0.72, 0.24], [0.44, 0.44], [0.53, 0.35], [0.45, 0.43]],
+        [[0.62, 0.25], [0.68, 0.21], [0.65, 0.23], [0.50, 0.40], [1.00, 0.00], [0.65, 0.30], [1.00, 0.00], [0.74, 0.15], [0.77, 0.13], [0.58, 0.31], [0.67, 0.31], [0.65, 0.23], [0.66, 0.21]],
+        [[1.00, 0.00], [1.00, 0.00], [0.44, 0.46], [1.00, 0.00], [0.77, 0.12], [0.63, 0.26], [0.52, 0.37], [0.81, 0.17], [0.54, 0.34], [0.30, 0.57], [0.54, 0.36], [0.54, 0.36], [0.33, 0.55]],
+        [[0.53, 0.37], [0.80, 0.15], [0.15, 0.74], [0.73, 0.16], [0.47, 0.43], [0.41, 0.47], [1.00, 0.00], [0.75, 0.21], [0.65, 0.24], [0.55, 0.35], [1.00, 0.00], [1.00, 0.00], [0.35, 0.55]]
+    ])
+
+    types = np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+
+    calculated_matrix = max_normalization(matrix, types)
+    reference_result1 = np.array([1.00, 0.00])
+    reference_result2 = np.array([0.59, 0.282])
+
+    assert np.alltrue(np.round(calculated_matrix[0, 0])== np.round(reference_result1))
+    assert np.alltrue(np.round(calculated_matrix[0, 1])== np.round(reference_result2))
+    
 def test_minmax_normalization():
     """
         Test veryfing correctness of the Min-Max normalization formula.

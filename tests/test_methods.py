@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Jakub Więckowski
+# Copyright (c) 2022-2023 Jakub Więckowski
 
 import numpy as np
 from pyifdm.methods import *
@@ -192,6 +192,33 @@ def test_ifMAIRCA():
     assert all(np.round(results, 3) == reference_results)
     assert all(if_mairca.rank() == [3, 4, 5, 1, 2])
 
+def test_ifMARCOS():
+    """
+        Test verifying correctness of the Intuitionistic Fuzzy MARCOS
+        Reference value: Ecer, F., & Pamucar, D. (2021). MARCOS technique under intuitionistic fuzzy environment for determining the COVID-19 pandemic performance of insurance companies in terms of healthcare services. Applied Soft Computing, 104, 107199.
+    """
+
+    matrix = np.array([
+        [[0.584, 0.020, 0.396], [0.553, 0.018, 0.429], [0.452, 0.029, 0.518], [0.568, 0.012, 0.420], [0.329, 0.043, 0.627], [0.449, 0.029, 0.522], [0.584, 0.011, 0.404]],
+        [[0.285, 0.577, 0.138], [0.407, 0.478, 0.116], [0.372, 0.506, 0.123], [0.379, 0.484, 0.137], [0.775, 0.163, 0.062], [0.250, 0.600, 0.150], [0.157, 0.692, 0.151]],
+        [[0.654, 0.245, 0.101], [0.591, 0.305, 0.104], [0.538, 0.361, 0.101], [0.639, 0.259, 0.101], [0.673, 0.241, 0.086], [0.627, 0.270, 0.102], [0.597, 0.300, 0.104]],
+        [[0.769, 0.166, 0.065], [0.788, 0.142, 0.071], [0.827, 0.122, 0.051], [0.717, 0.192, 0.091], [0.571, 0.327, 0.102], [1.000, 0.000, 0.000], [0.667, 0.231, 0.101]],
+        [[1.000, 0.000, 0.000], [1.000, 0.000, 0.000], [1.000, 0.000, 0.000], [1.000, 0.000, 0.000], [0.775, 0.163, 0.062], [1.000, 0.000, 0.000], [1.000, 0.000, 0.000]],
+        [[0.423, 0.477, 0.100], [0.542, 0.357, 0.101], [0.553, 0.346, 0.101], [0.487, 0.413, 0.100], [0.580, 0.319, 0.101], [0.667, 0.231, 0.101], [0.721, 0.200, 0.079]],
+        [[0.220, 0.629, 0.150], [0.360, 0.527, 0.113], [0.194, 0.655, 0.151], [0.414, 0.469, 0.117], [1.000, 0.000, 0.000], [0.199, 0.650, 0.151], [0.639, 0.259, 0.102]],
+        [[0.815, 0.129, 0.056], [0.832, 0.117, 0.051], [1.000, 0.000, 0.000], [0.814, 0.126, 0.060], [0.178, 0.689, 0.133], [0.844, 0.106, 0.050], [1.000, 0.000, 0.000]],
+        [[0.329, 0.548, 0.123], [0.285, 0.577, 0.138], [0.391, 0.493, 0.116], [0.591, 0.305, 0.104], [0.331, 0.541, 0.128], [0.324, 0.551, 0.125], [0.653, 0.244, 0.103]],
+        [[0.733, 0.184, 0.083], [0.597, 0.301, 0.102], [0.581, 0.317, 0.102], [0.705, 0.208, 0.087], [0.816, 0.134, 0.051], [0.721, 0.200, 0.079], [0.696, 0.212, 0.092]]
+    ])
+    weights = np.array([0.117, 0.131, 0.156, 0.136, 0.137, 0.163, 0.160])
+    types = np.array([1, 1, 1, 1, 1, -1, -1])
+
+    if_marcos = ifMARCOS()
+    if_marcos(matrix, weights, types)
+    reference_results = np.array([7, 2, 6, 3, 1, 9, 8, 4, 10, 5])
+
+    assert all(if_marcos.rank() == reference_results)
+
 def test_ifMOORA():
     """
         Test verifying correctness of the Intuitionistic Fuzzy MOORA
@@ -220,6 +247,44 @@ def test_ifMOORA():
 
     assert all(rank(results) == reference_ranking)
     assert all(if_moora.rank() == reference_ranking)
+
+def test_ifOCRA():
+    """
+        Test verifying correctness of the Intuitionistic Fuzzy OCRA
+        Formula: Mishra, A. R., Rani, P., Cavallaro, F., Hezam, I. M., & Lakshmi, J. (2023). An integrated intuitionistic fuzzy closeness coefficient-based OCRA method for sustainable urban transportation options selection. Axioms, 12(2), 144.
+        Reference value: Self-calculated empirical verification
+    """
+    
+    matrix = np.array([
+        [[0.698, 0.215, 0.087],	[0.830, 0.130, 0.041],	[0.620, 0.276, 0.103],	[0.830, 0.130, 0.041],	[0.645, 0.260, 0.095]],
+        [[0.638, 0.270, 0.092],	[0.751, 0.169, 0.080],	[0.574, 0.323, 0.104],	[0.779, 0.169, 0.052],	[0.690, 0.226, 0.084]],
+        [[0.315, 0.584, 0.101],	[0.221, 0.699, 0.080],	[0.322, 0.577, 0.101],	[0.298, 0.602, 0.101],	[0.327, 0.572, 0.101]],
+        [[0.384, 0.478, 0.139],	[0.286, 0.614, 0.101],	[0.355, 0.543, 0.103],	[0.392, 0.506, 0.102],	[0.295, 0.604, 0.101]],
+        [[0.575, 0.321, 0.104],	[0.632, 0.285, 0.083],	[0.614, 0.283, 0.103],	[0.847, 0.123, 0.030],	[0.703, 0.210, 0.087]],
+        [[0.816, 0.151, 0.033],	[0.595, 0.312, 0.094],	[0.661, 0.255, 0.084],	[0.798, 0.164, 0.039],	[0.679, 0.237, 0.084]],
+        [[0.618, 0.293, 0.088],	[0.621, 0.296, 0.084],	[0.698, 0.230, 0.072],	[0.712, 0.204, 0.084],	[0.689, 0.224, 0.087]],
+        [[0.261, 0.658, 0.082],	[0.379, 0.521, 0.100],	[0.367, 0.530, 0.102],	[0.281, 0.634, 0.085],	[0.286, 0.611, 0.104]],
+        [[0.330, 0.567, 0.103],	[0.316, 0.581, 0.103],	[0.296, 0.616, 0.088],	[0.236, 0.679, 0.085],	[0.319, 0.579, 0.103]],
+        [[0.811, 0.159, 0.030],	[0.809, 0.145, 0.046],	[0.669, 0.249, 0.082],	[0.562, 0.334, 0.104],	[0.654, 0.263, 0.083]],
+        [[0.705, 0.212, 0.084],	[0.703, 0.217, 0.080],	[0.801, 0.162, 0.037],	[0.701, 0.209, 0.091],	[0.698, 0.230, 0.072]]
+    ])
+
+    weights = np.array([0.0893, 0.0847, 0.0943, 0.0954, 0.0860, 0.0973, 0.0838, 0.0852, 0.1008, 0.0915, 0.0917])
+    types = np.array([1, 1, -1, -1, 1, 1, 1, -1, -1, 1, 1])
+
+
+    M = []
+    for j in range(matrix.shape[1]):
+        M.append([matrix[i, j] for i in range(matrix.shape[0])])
+
+    matrix = np.array(M)
+
+    if_ocra = ifOCRA()
+    results = if_ocra(matrix, weights, types)
+    reference_ranking = np.array([4, 2, 5, 1, 3])
+
+    assert all(rank(results) == reference_ranking)
+    assert all(if_ocra.rank() == reference_ranking)
 
 def test_ifTOPSIS():
     """
@@ -281,3 +346,53 @@ def test_ifVIKOR():
     assert all(ranks[0] == rank(reference_S, False))
     assert all(ranks[1] == rank(reference_R, False))
     assert all(ranks[2] == rank(reference_Q, False))
+
+def test_ifWPM():
+    """
+        Test verifying correctness of the Intuitionistic Fuzzy WPM
+        Formula: Mishra, Xiong, L., Zhong, S., Liu, S., Zhang, X., & Li, Y. (2020). An approach for resilient-green supplier selection based on WASPAS, BWM, and TOPSIS under intuitionistic fuzzy sets. Mathematical Problems in Engineering, 2020.
+        Reference value: Self-calculated empirical verification
+    """
+    
+    matrix = np.array([
+        [[1.00, 0.00], [0.60, 0.28], [0.39, 0.49], [0.59, 0.31], [0.80, 0.15], [0.15, 0.70], [0.75, 0.19], [1.00, 0.00], [0.47, 0.43], [0.72, 0.24], [0.44, 0.44], [0.53, 0.35], [0.45, 0.43]],
+        [[0.62, 0.25], [0.68, 0.21], [0.65, 0.23], [0.50, 0.40], [1.00, 0.00], [0.65, 0.30], [1.00, 0.00], [0.74, 0.15], [0.77, 0.13], [0.58, 0.31], [0.67, 0.31], [0.65, 0.23], [0.66, 0.21]],
+        [[1.00, 0.00], [1.00, 0.00], [0.44, 0.46], [1.00, 0.00], [0.77, 0.12], [0.63, 0.26], [0.52, 0.37], [0.81, 0.17], [0.54, 0.34], [0.30, 0.57], [0.54, 0.36], [0.54, 0.36], [0.33, 0.55]],
+        [[0.53, 0.37], [0.80, 0.15], [0.15, 0.74], [0.73, 0.16], [0.47, 0.43], [0.41, 0.47], [1.00, 0.00], [0.75, 0.21], [0.65, 0.24], [0.55, 0.35], [1.00, 0.00], [1.00, 0.00], [0.35, 0.55]]
+    ])
+
+    weights = np.array([0.085, 0.030, 0.244, 0.028, 0.063, 0.089, 0.085, 0.089, 0.041, 0.063, 0.112, 0.022, 0.049])
+    types = np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+
+    if_wpm = ifWPM()
+    results = if_wpm(matrix, weights, types)
+    reference_ranking = np.array([4, 1, 2, 3])
+
+    assert all(rank(results) == reference_ranking)
+    assert all(if_wpm.rank() == reference_ranking)
+
+def test_ifWSM():
+    """
+        Test verifying correctness of the Intuitionistic Fuzzy WSM
+        Formula: Mishra, Xiong, L., Zhong, S., Liu, S., Zhang, X., & Li, Y. (2020). An approach for resilient-green supplier selection based on WASPAS, BWM, and TOPSIS under intuitionistic fuzzy sets. Mathematical Problems in Engineering, 2020.
+        Reference value: Self-calculated empirical verification
+    """
+    
+    matrix = np.array([
+        [[1.00, 0.00], [0.60, 0.28], [0.39, 0.49], [0.59, 0.31], [0.80, 0.15], [0.15, 0.70], [0.75, 0.19], [1.00, 0.00], [0.47, 0.43], [0.72, 0.24], [0.44, 0.44], [0.53, 0.35], [0.45, 0.43]],
+        [[0.62, 0.25], [0.68, 0.21], [0.65, 0.23], [0.50, 0.40], [1.00, 0.00], [0.65, 0.30], [1.00, 0.00], [0.74, 0.15], [0.77, 0.13], [0.58, 0.31], [0.67, 0.31], [0.65, 0.23], [0.66, 0.21]],
+        [[1.00, 0.00], [1.00, 0.00], [0.44, 0.46], [1.00, 0.00], [0.77, 0.12], [0.63, 0.26], [0.52, 0.37], [0.81, 0.17], [0.54, 0.34], [0.30, 0.57], [0.54, 0.36], [0.54, 0.36], [0.33, 0.55]],
+        [[0.53, 0.37], [0.80, 0.15], [0.15, 0.74], [0.73, 0.16], [0.47, 0.43], [0.41, 0.47], [1.00, 0.00], [0.75, 0.21], [0.65, 0.24], [0.55, 0.35], [1.00, 0.00], [1.00, 0.00], [0.35, 0.55]]
+    ])
+
+    weights = np.array([0.085, 0.030, 0.244, 0.028, 0.063, 0.089, 0.085, 0.089, 0.041, 0.063, 0.112, 0.022, 0.049])
+    types = np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+
+    if_wsm = ifWSM()
+    results = if_wsm(matrix, weights, types)
+    reference_ranking = np.array([4, 1, 2, 3])
+
+    assert all(rank(results) == reference_ranking)
+    assert all(if_wsm.rank() == reference_ranking)
+
+

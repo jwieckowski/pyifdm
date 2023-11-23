@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="pyifdm",
-    version="1.0.1",
+    version="1.1.0",
     author="Jakub Więckowski",
     author_email="J.Wieckowski@il-pib.pl",
     description="Python library to support Decision Making with Intuitionistic Fuzzy Sets",
@@ -18,7 +18,7 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.7',
+    python_requires='>=3.8',
     install_requires=[
         'numpy',
         'scipy'

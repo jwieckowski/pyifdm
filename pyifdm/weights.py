@@ -1,5 +1,4 @@
-# # Copyright (c) 2022 Jakub Więckowski
-# # Copyright (c) 2022 Bartłomiej Kizielewicz
+# Copyright (c) 2022 Jakub Więckowski, Bartłomiej Kizielewicz
 
 import numpy as np
 

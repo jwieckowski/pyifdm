@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Jakub Więckowski
+# Copyright (c) 2022-2023 Jakub Więckowski
 
 import numpy as np
 from pyifdm.methods.ifs.distance import *
@@ -42,6 +42,19 @@ def test_hamming_distance():
     reference_value = 0.5
 
     assert calculated_value == reference_value
+
+def test_hausdorf_euclidean_distance():
+    """
+        Test veryfing correctness of the Hausdorf measure-based Euclidean distance formula.
+        Formula: Li, M., Wu, C., Zhang, L., & You, L. N. (2015). An intuitionistic fuzzy-TODIM method to solve distributor evaluation and selection problem. International Journal of Simulation Modelling, 14(3), 511-524.
+        Reference value: Self-calculated empirical verification
+    """
+    x = np.array([0.8, 0.2])
+    y = np.array([0.6, 0.3])
+    calculated_value = hausdorf_euclidean_distance(x, y)
+    reference_value = 0.4
+
+    assert np.round(calculated_value, 3) == reference_value
 
 def test_luo_distance():
     """

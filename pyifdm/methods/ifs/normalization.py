@@ -1,9 +1,10 @@
-# Copyright (c) 2022 Jakub Więckowski
+# Copyright (c) 2022-2023 Jakub Więckowski
 
 import numpy as np
 
 __all__ = [
     'ecer_normalization',
+    'max_normalization',
     'minmax_normalization',
     'supriya_normalization',
     'swap_normalization',
@@ -39,6 +40,32 @@ def ecer_normalization(matrix, types):
     nmatrix[:, types==1] = matrix[:, types==1] / np.max(matrix[:, types==1], axis=0)
     nmatrix[:, types==-1] = np.min(matrix[:, types==-1], axis=0) / matrix[:, types==-1] 
     
+    return nmatrix.astype(float)
+
+def minmax_normalization(matrix, types):
+    """
+        Calculates the normalized value of Intuitionistic Fuzzy matrix using Max normalization
+
+        Parameters
+        ----------
+            matrix : ndarray
+                Matrix with Intuitionistic Fuzzy Sets
+
+            types : ndarray
+                Types of criteria, 1 profit, -1 cost
+
+        Returns
+        -------
+            ndarray
+                Normalized Intuitionistic Fuzzy matrix
+    """
+
+    nmatrix = matrix.copy()
+    if 1 in types:
+        nmatrix[:, types == 1] = matrix[:, types == 1] / np.max(([np.max(matrix[:, types == 1, 0]), np.min(matrix[:, types == 1, 1])]))
+    if -1 in types:
+        nmatrix[:, types == -1] = np.min(([np.min(matrix[:, types == -1, 0]), np.max(matrix[:, types == 1, 1])])) / matrix[:, types == -1]
+
     return nmatrix.astype(float)
 
 def minmax_normalization(matrix, types):
