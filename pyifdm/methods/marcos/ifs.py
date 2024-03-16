@@ -1,6 +1,7 @@
 # Copyright (c) 2023 Jakub Więckowski
 
 import numpy as np
+from ..ifs.score import chen_score_1
 
 def ifs(matrix, weights, types):
     """
@@ -23,6 +24,10 @@ def ifs(matrix, weights, types):
                 Crisp preferences of alternatives
 
     """
+
+    # if ifs weights, convert to to crisp
+    if not isinstance(weights[0], (float, np.floating)):
+        weights = chen_score_1(weights)
 
     if matrix.shape[2] == 2:
         new_matrix = np.zeros((matrix.shape[0], matrix.shape[1], matrix.shape[2] + 1))

@@ -37,7 +37,7 @@ class ifMARCOS():
                 Preference calculated for alternatives. Greater values are placed higher in ranking
         """
         # validate data
-        Validator.ifs_validation(matrix, weights, types, mixed_types=True, crisp_weights=True)
+        Validator.ifs_validation(matrix, weights, types, mixed_types=True)
 
         self.preferences = ifs(matrix, weights, types).astype(float)
         return self.preferences

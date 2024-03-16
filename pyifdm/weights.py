@@ -50,9 +50,7 @@ def equal_weights(matrix):
                 Array of equal weights
     """
 
-    w = np.ones(matrix.shape[1]) / 2
-    return np.repeat(w, 2).reshape((len(w), 2))
-
+    return np.ones(matrix.shape[1]) / matrix.shape[1]
 
 def entropy_weights(matrix):
     """
@@ -75,9 +73,9 @@ def entropy_weights(matrix):
         p.append(1 / matrix.shape[0] * sum([1 - matrix[i, j, 0] - matrix[i, j, 1]
                                             for i in range(matrix.shape[0])]))
 
-    w = np.zeros((1, matrix.shape[1]))
+    w = np.zeros(matrix.shape[1])
     for idx, pp in enumerate(p):
-        w[0, idx] = (1/pp) / np.sum(1/np.array(p))
+        w[idx] = (1/pp) / np.sum(1/np.array(p))
 
     return w
 
@@ -173,3 +171,4 @@ def ye_entropy_weights(matrix):
             1 / (np.sqrt(2) - 1))) / matrix[:, i].shape[0]
 
     return weights
+

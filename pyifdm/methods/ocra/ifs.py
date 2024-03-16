@@ -29,6 +29,11 @@ def ifs(matrix, weights, types, score):
 
     """
 
+    # if ifs weights, convert to to crisp
+    if not isinstance(weights[0], (float, np.floating)):
+        weights = chen_score_1(weights)
+
+
     # score matrix
     smatrix = score(matrix)
 

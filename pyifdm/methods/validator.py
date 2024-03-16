@@ -28,9 +28,13 @@ class Validator():
 
         """
 
-        if len(np.unique([matrix.shape[1], weights.shape[0], types.shape[0]])) != 1:
-            raise ValueError(f'Number of criteria should equals number of weights and types, not {matrix.shape[1]}, {weights.shape[0]}, {types.shape[0]}')
-    
+        if weights.ndim == 1:
+            if len(np.unique([matrix.shape[1], weights.shape[0], types.shape[0]])) != 1:
+                raise ValueError(f'Number of criteria should equal number of weights and types, not {matrix.shape[1]}, {weights.shape[0]}, {types.shape[0]}')
+        elif weights.ndim == 2:
+            if len(np.unique([matrix.shape[1], weights.shape[0], types.shape[0]])) != 1:
+                raise ValueError(f'Number of criteria should equal number of number of rows in weights and types, not {matrix.shape[1]}, {weights.shape[0]}, {types.shape[0]}')
+
     @staticmethod
     def validate_ifs_matrix(matrix):
         """
@@ -54,7 +58,7 @@ class Validator():
                 'IFS matrix elements should all have length of 2 or 3')
 
     @staticmethod
-    def validate_weights(weights, crisp_weights=False):
+    def validate_weights(weights):
         """
         For crisp weights checks if sum of weights equals 1
         For fuzzy weights checks if given as IFS
@@ -74,11 +78,7 @@ class Validator():
 
         """
 
-        if crisp_weights:
-            if np.array(weights).ndim != 1:
-                raise ValueError('Weights should be given as crisp values')
-
-        if isinstance(weights[0], np.float_):
+        if isinstance(weights[0], (float, np.floating)):
             if np.round(np.sum(weights), 3) != 1:
                 raise ValueError(
                     f'Sum of crisp weights should equal 1, not {np.sum(weights)}')
@@ -108,7 +108,7 @@ class Validator():
             raise ValueError('Criteria types should not be the same')
 
     @staticmethod
-    def ifs_validation(matrix, weights, types, mixed_types=False, crisp_weights=False):
+    def ifs_validation(matrix, weights, types, mixed_types=False):
         """
         Runs all validations for the fuzzy IFS extension
 
@@ -127,9 +127,6 @@ class Validator():
             mixed_types : boolean, default=False
                 Flag to determine if types array must be mixed
 
-            crisp_weights : bool
-                Flag to check if only crisp weights are acceptable
-
         Returns
         -------
             raises:
@@ -138,7 +135,7 @@ class Validator():
         """
         Validator.validate_input(matrix, weights, types)
         Validator.validate_ifs_matrix(matrix)
-        Validator.validate_weights(weights, crisp_weights)
+        Validator.validate_weights(weights)
         if mixed_types:
             Validator.validate_types(types)
 
