@@ -1,3 +1,98 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyifdm"
+version = "1.2.0"
+description = "Python library for Multi-Criteria Decision Analysis with Intuitionistic Fuzzy Sets"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Jakub Więckowski", email = "J.Wieckowski@il-pib.pl"},
+]
+maintainers = [
+    {name = "Jakub Więckowski", email = "J.Wieckowski@il-pib.pl"},
+]
+keywords = [
+    "mcda",
+    "mcdm",
+    "intuitionistic-fuzzy-sets",
+    "ifs",
+    "decision-making",
+    "fuzzy",
+    "multi-criteria",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Typing :: Typed",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.20",
+    "scipy>=1.7",
+]
+
+[project.optional-dependencies]
+plot = [
+    "matplotlib>=3.5",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.1",
+    "mypy>=1.0",
+]
+docs = [
+    "sphinx>=5.0",
+    "sphinx-rtd-theme>=1.0",
+]
+all = [
+    "pyifdm[plot,dev,docs]",
+]
+
+[project.urls]
+Homepage = "https://github.com/jwieckowski/pyifdm"
+Documentation = "https://pyifdm.readthedocs.io"
+Repository = "https://github.com/jwieckowski/pyifdm"
+Issues = "https://github.com/jwieckowski/pyifdm/issues"
+Changelog = "https://github.com/jwieckowski/pyifdm/blob/main/CHANGELOG.md"
+
+[tool.setuptools]
+packages = ["pyifdm", "pyifdm.IFS", "pyifdm.methods", "pyifdm.graphs"]
+
+[tool.setuptools.package-data]
+pyifdm = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --tb=short"
+
+[tool.ruff]
+line-length = 100
+target-version = "py38"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true

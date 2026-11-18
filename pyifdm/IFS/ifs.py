@@ -1,308 +1,306 @@
-# Copyright (c) 2023 Jakub Więckowski
+# Copyright (c) 2023-2026 Jakub Więckowski & contributors
 
+from __future__ import annotations
+
+from typing import Optional, Sequence, Union
 import numpy as np
+
+
+Number = Union[int, float, np.floating]
+
 
 class IFS:
     """
-    Represents an Intuitionistic Fuzzy Set (IFS) with membership, non-membership, and uncertainty values.
+    Intuitionistic Fuzzy Set (IFS).
 
-    Parameters:
-    - membership (float): The degree to which an element belongs to the set.
-    - non_membership (float): The degree to which an element does not belong to the set.
-    - uncertainty (float, optional): The degree of uncertainty in the membership assignment.
-      If not provided, it is calculated as 1 - membership - non_membership.
+    An IFS is defined by membership (μ), non-membership (ν) and hesitation/
+    uncertainty (π) degrees satisfying:
 
-    Methods:
-    - __and__(self, other): Intersection operator for IFS.
-    - __or__(self, other): Union operator for IFS.
-    - __invert__(self): Complement operator for IFS.
-    - owa_aggregation(self, weights): Ordered Weighted Averaging (OWA) aggregation operator for IFS.
+        0 ≤ μ, ν ≤ 1
+        μ + ν ≤ 1
+        π = 1 - μ - ν   (when not supplied explicitly)
 
-    Example:
-    ```
-    # Example Usage:
-    ifs1 = IFS(0.6, 0.2)
-    ifs2 = IFS(0.8, 0.1)
-    intersection_result = ifs1 & ifs2
-    union_result = ifs1 | ifs2
-    complement_result = ~ifs1
-    owa_weights = [0.3, 0.4, 0.3]
-    owa_result = ifs1.owa_aggregation(owa_weights)
-    ```
+    Parameters
+    ----------
+    membership : float
+        Degree of membership μ ∈ [0, 1].
+    non_membership : float
+        Degree of non-membership ν ∈ [0, 1].
+    uncertainty : float, optional
+        Hesitation degree π. If omitted it is computed as 1 - μ - ν.
+        When provided it must satisfy μ + ν + π ≈ 1 (within tolerance).
 
-    The IFS class supports standard set operations and aggregation, providing a versatile representation
-    for handling uncertainty and imprecision in decision-making.
+    Raises
+    ------
+    ValueError
+        If the values violate the IFS axioms.
     """
 
-    def __init__(self, membership, non_membership, uncertainty=None):
-        """
-        Initialize an Intuitionistic Fuzzy Set (IFS).
+    __slots__ = ("_membership", "_non_membership", "_uncertainty")
 
-        Parameters:
-        - membership (float): The degree to which an element belongs to the set.
-        - non_membership (float): The degree to which an element does not belong to the set.
-        - uncertainty (float, optional): The degree of uncertainty in the membership assignment.
-            If not provided, it is calculated as 1 - membership - non_membership.
-        
-        """
+    def __init__(
+        self,
+        membership: Number,
+        non_membership: Number,
+        uncertainty: Optional[Number] = None,
+        *,
+        tol: float = 1e-9,
+    ) -> None:
+        mu = float(membership)
+        nu = float(non_membership)
 
-        self.membership = membership
-        self.non_membership = non_membership
+        if not (0.0 - tol <= mu <= 1.0 + tol):
+            raise ValueError(f"membership must be in [0, 1], got {mu}")
+        if not (0.0 - tol <= nu <= 1.0 + tol):
+            raise ValueError(f"non_membership must be in [0, 1], got {nu}")
+        if mu + nu > 1.0 + tol:
+            raise ValueError(
+                f"membership + non_membership must be ≤ 1, got {mu} + {nu} = {mu + nu}"
+            )
+
+        # clamp tiny numerical noise
+        mu = min(max(mu, 0.0), 1.0)
+        nu = min(max(nu, 0.0), 1.0)
+
         if uncertainty is not None:
-            self.uncertainty = uncertainty
+            pi = float(uncertainty)
+            if not (0.0 - tol <= pi <= 1.0 + tol):
+                raise ValueError(f"uncertainty must be in [0, 1], got {pi}")
+            if abs(mu + nu + pi - 1.0) > 1e-6:
+                # soft handling – recompute to keep consistency
+                pi = max(0.0, 1.0 - mu - nu)
         else:
-            self.uncertainty = 1 - membership - non_membership
+            pi = max(0.0, 1.0 - mu - nu)
 
-    def __repr__(self):
+        self._membership = mu
+        self._non_membership = nu
+        self._uncertainty = pi
+
+    @property
+    def membership(self) -> float:
+        return self._membership
+
+    @property
+    def non_membership(self) -> float:
+        return self._non_membership
+
+    @property
+    def uncertainty(self) -> float:
+        return self._uncertainty
+
+    # aliases commonly used in literature
+    @property
+    def mu(self) -> float:
+        return self._membership
+
+    @property
+    def nu(self) -> float:
+        return self._non_membership
+
+    @property
+    def pi(self) -> float:
+        return self._uncertainty
+
+    @classmethod
+    def from_array(
+        cls, arr: Sequence[Number], *, tol: float = 1e-9
+    ) -> "IFS":
         """
-        Return a string representation of the IFS.
-
-        Returns:
-        str: A string representation of the IFS.
-
+        Create IFS from a sequence of length 2 (μ, ν) or 3 (μ, ν, π).
         """
-
-        return f"IFS({self.membership}, {self.non_membership}, {self.uncertainty})"
-
-    def __str__(self):
-        """
-        Return a human-readable string representation of the IFS.
-
-        Returns:
-        str: A string representation of the IFS.
-        
-        """
-
-        return f"Membership: {self.membership}, Non-membership: {self.non_membership}, Uncertainty: {self.uncertainty}"
-
-    def __eq__(self, other):
-        """
-        Check if two IFS are equal.
-
-        Parameters:
-        - other (IFS): The IFS to compare with.
-
-        Returns:
-        bool: True if the IFS are equal, False otherwise.
-        
-        """
-
-        return (
-            self.membership == other.membership and
-            self.non_membership == other.non_membership and
-            self.uncertainty == other.uncertainty
+        arr = list(arr)
+        if len(arr) == 2:
+            return cls(arr[0], arr[1], tol=tol)
+        if len(arr) == 3:
+            return cls(arr[0], arr[1], arr[2], tol=tol)
+        raise ValueError(
+            f"IFS array must have length 2 or 3, got length {len(arr)}"
         )
 
-    def __add__(self, other):
+    def to_array(self, with_uncertainty: bool = True) -> np.ndarray:
+        """Return (μ, ν) or (μ, ν, π) as numpy array."""
+        if with_uncertainty:
+            return np.array(
+                [self._membership, self._non_membership, self._uncertainty],
+                dtype=float,
+            )
+        return np.array([self._membership, self._non_membership], dtype=float)
+
+    def __repr__(self) -> str:
+        return (
+            f"IFS({self._membership:.6g}, {self._non_membership:.6g}, "
+            f"{self._uncertainty:.6g})"
+        )
+
+    def __str__(self) -> str:
+        return (
+            f"Membership: {self._membership:.6g}, "
+            f"Non-membership: {self._non_membership:.6g}, "
+            f"Uncertainty: {self._uncertainty:.6g}"
+        )
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, IFS):
+            return NotImplemented
+        return (
+            abs(self._membership - other._membership) < 1e-9
+            and abs(self._non_membership - other._non_membership) < 1e-9
+            and abs(self._uncertainty - other._uncertainty) < 1e-9
+        )
+
+    def __hash__(self) -> int:
+        return hash(
+            (
+                round(self._membership, 9),
+                round(self._non_membership, 9),
+                round(self._uncertainty, 9),
+            )
+        )
+
+    def __add__(self, other: "IFS") -> "IFS":
+        if not isinstance(other, IFS):
+            return NotImplemented
+        mu = self._membership + other._membership - self._membership * other._membership
+        nu = self._non_membership * other._non_membership
+        return IFS(mu, nu)
+
+    def __sub__(self, other: "IFS") -> "IFS":
         """
-        Compute the addition of two IFS.
-
-        Parameters:
-        - other (IFS): The IFS to add.
-
-        Returns:
-        IFS: The resulting IFS after addition.
-        
+        Subtraction based on the condition from the original package.
+        Falls back to (0, 1) when the operation is undefined.
         """
-        
-        membership = self.membership + other.membership - self.membership * other.membership
-        non_membership = self.non_membership - other.non_membership
-        uncertainty = np.max([1 - (membership + non_membership), 0])
+        if not isinstance(other, IFS):
+            return NotImplemented
+        # avoid division by zero
+        if other._non_membership == 0 or (1 - other._membership) == 0:
+            return IFS(0.0, 1.0)
+        if self._non_membership / other._non_membership <= (
+            (1 - self._membership) / (1 - other._membership)
+        ):
+            mu = (self._membership - other._membership) / (1 - other._membership)
+            nu = self._non_membership / other._non_membership
+            return IFS(max(0.0, mu), min(1.0, nu))
+        return IFS(0.0, 1.0)
 
-        return IFS(membership, non_membership, uncertainty)
+    def __mul__(self, other: "IFS") -> "IFS":
+        if not isinstance(other, IFS):
+            return NotImplemented
+        mu = self._membership * other._membership
+        nu = (
+            self._non_membership
+            + other._non_membership
+            - self._non_membership * other._non_membership
+        )
+        return IFS(mu, nu)
 
-    def __sub__(self, other):
-        """
-        Compute the subtraction of two IFS.
+    def __truediv__(self, other: "IFS") -> "IFS":
+        if not isinstance(other, IFS):
+            return NotImplemented
+        if other._membership == 0 or (1 - other._non_membership) == 0:
+            return IFS(1.0, 0.0)
+        if self._membership / other._membership <= (
+            (1 - self._non_membership) / (1 - other._non_membership)
+        ):
+            mu = self._membership / other._membership
+            nu = (self._non_membership - other._non_membership) / (
+                1 - other._non_membership
+            )
+            return IFS(min(1.0, mu), max(0.0, nu))
+        return IFS(1.0, 0.0)
 
-        Parameters:
-        - other (IFS): The IFS to subtract.
-
-        Returns:
-        IFS: The resulting IFS after subtraction.
-        
-        """
-        
-        if self.non_membership / other.non_membership <= ((1 - self.membership) / (1 - other.membership)):
-            membership = (self.membership - other.membership) / (1 - other.membership)
-            non_membership = self.non_membership / other.non_membership
-            uncertainty = np.max([1 - (membership + non_membership), 0])
-            
-            return IFS(membership, non_membership, uncertainty)
-        else:
-            return IFS(0, 1, 0)
-
-    def __mul__(self, other):
-        """
-        Compute the multiplication of two IFS.
-
-        Parameters:
-        - other (IFS): The IFS to multiply.
-
-        Returns:
-        IFS: The resulting IFS after multiplication.
-        
-        """
-        
-        membership = self.membership * other.membership
-        non_membership = self.non_membership + other.non_membership - self.non_membership * other.non_membership
-        uncertainty = np.max([1 - (membership + non_membership), 0])
-
-        return IFS(membership, non_membership, uncertainty)
-
-    def __truediv__(self, other):
-        """
-        Compute the division of two IFS.
-
-        Parameters:
-        - other (IFS): The IFS to divide.
-
-        Returns:
-        IFS: The resulting IFS after division.
-        
-        """
-        
-        if self.membership / other.membership <= ((1 - self.non_membership) / (1 - other.non_membership)):
-            membership = self.membership / other.membership
-            non_membership = (self.non_membership - other.non_membership) / (1 - other.non_membership)
-            uncertainty = np.max([1 - (membership + non_membership), 0])
-            
-            return IFS(membership, non_membership, uncertainty)
-        else:
-            return IFS(1, 0, 0)
-
-    def __pow__(self, y):
-        """
-        Compute the division of two IFS.
-
-        Parameters:
-        - other (IFS): The IFS to divide.
-
-        Returns:
-        IFS: The resulting IFS after division.
-        
-        """
-        
+    def __pow__(self, y: Number) -> "IFS":
+        y = float(y)
         if y <= 0:
-            raise ValueError('Power should be greater than 0')
+            raise ValueError("Power must be greater than 0")
+        mu = self._membership ** y
+        nu = 1.0 - (1.0 - self._non_membership) ** y
+        return IFS(mu, nu)
 
-        membership = self.membership ** y
-        non_membership = 1 - (1 - self.non_membership) ** y
-        uncertainty = np.max([1 - (membership + non_membership), 0])
+    def __and__(self, other: "IFS") -> "IFS":
+        """Intersection (min μ, max ν)."""
+        if not isinstance(other, IFS):
+            return NotImplemented
+        mu = min(self._membership, other._membership)
+        nu = max(self._non_membership, other._non_membership)
+        return IFS(mu, nu)
 
-        return IFS(membership, non_membership, uncertainty)
+    def __or__(self, other: "IFS") -> "IFS":
+        """Union (max μ, min ν)."""
+        if not isinstance(other, IFS):
+            return NotImplemented
+        mu = max(self._membership, other._membership)
+        nu = min(self._non_membership, other._non_membership)
+        return IFS(mu, nu)
 
-    def __and__(self, other):
-        """
-        Compute the intersection of two IFS.
+    def __invert__(self) -> "IFS":
+        """Complement: (ν, μ)."""
+        return IFS(self._non_membership, self._membership)
 
-        Parameters:
-        - other (IFS): The IFS to intersect with.
-
-        Returns:
-        IFS: The resulting IFS after intersection.
-        
-        """
-
-        membership = min(self.membership, other.membership)
-        non_membership = max(self.non_membership, other.non_membership)
-        uncertainty = np.max([1 - (membership + non_membership), 0])
-
-        return IFS(membership, non_membership, uncertainty)
-
-    def __or__(self, other):
-        """
-        Compute the union of two IFS.
-
-        Parameters:
-        - other (IFS): The IFS to union with.
-
-        Returns:
-        IFS: The resulting IFS after union.
-        
-        """
-    
-        membership = max(self.membership, other.membership)
-        non_membership = min(self.non_membership, other.non_membership)
-        uncertainty = np.max([1 - (membership + non_membership), 0])
-        
-        return IFS(membership, non_membership, uncertainty)
-
-    def __invert__(self):
-        """
-        Compute the complement of the IFS.
-
-        Returns:
-        IFS: The resulting complemented IFS.
-        
-        """
-
-        return IFS(self.non_membership, self.membership, self.uncertainty)
-
-    def dominance(self, other):
-        """
-        Check if one IFS dominates another.
-
-        Parameters:
-        - other (IFS): The IFS to compare with.
-
-        Returns:
-        bool: True if the current IFS dominates the other, False otherwise.
-        
-        """
-
+    def dominance(self, other: "IFS") -> bool:
+        """True if this IFS dominates `other` (higher μ, lower ν and π)."""
+        if not isinstance(other, IFS):
+            raise TypeError("other must be an IFS instance")
+        eps = 1e-12
         return (
-            self.membership >= other.membership and
-            self.non_membership <= other.non_membership and
-            self.uncertainty <= other.uncertainty
+            self._membership + eps >= other._membership
+            and self._non_membership <= other._non_membership + eps
+            and self._uncertainty <= other._uncertainty + eps
         )
 
-    def owa_aggregation(self, weights):
+    def owa_aggregation(self, weights: Sequence[Number]) -> float:
         """
-        Compute the Ordered Weighted Averaging (OWA) aggregation of the IFS.
+        Ordered Weighted Averaging on the triple (ν, π, μ).
 
-        Parameters:
-        - weights (list): A list of weights for each component (non-membership, uncertainty, membership).
-
-        Returns:
-        float: The result of the OWA aggregation.
-        
+        `weights` must sum to 1 and have length 3.
         """
+        w = np.asarray(weights, dtype=float)
+        if w.shape != (3,):
+            raise ValueError("OWA weights must be a sequence of length 3")
+        if abs(w.sum() - 1.0) > 1e-6:
+            raise ValueError("OWA weights must sum to 1")
+        values = np.array(
+            [self._non_membership, self._uncertainty, self._membership]
+        )
+        return float(np.dot(w, values))
 
-        values = [self.non_membership, self.uncertainty, self.membership]
-        return np.sum(np.multiply(weights, values))
+    def similarity_jaccard(self, other: "IFS") -> float:
+        """Jaccard similarity between two IFS."""
+        if not isinstance(other, IFS):
+            raise TypeError("other must be an IFS instance")
+        inter = (
+            min(self._membership, other._membership)
+            + min(self._non_membership, other._non_membership)
+            + min(self._uncertainty, other._uncertainty)
+        )
+        union = (
+            max(self._membership, other._membership)
+            + max(self._non_membership, other._non_membership)
+            + max(self._uncertainty, other._uncertainty)
+        )
+        if union == 0:
+            return 1.0
+        return inter / union
 
-    def similarity_jaccard(self, other):
-        """
-        Compute the Jaccard similarity coefficient between two IFS.
+    def fuzzy_relation(self, other: "IFS") -> np.ndarray:
+        """3×3 fuzzy relation matrix (component-wise min)."""
+        if not isinstance(other, IFS):
+            raise TypeError("other must be an IFS instance")
+        a = [self._membership, self._non_membership, self._uncertainty]
+        b = [other._membership, other._non_membership, other._uncertainty]
+        rel = np.zeros((3, 3))
+        for i, ai in enumerate(a):
+            for j, bj in enumerate(b):
+                rel[i, j] = min(ai, bj)
+        return rel
 
-        Parameters:
-        - other (IFS): The IFS to compare with.
+    def score(self) -> float:
+        """Simple score function S = μ - ν (common in ranking)."""
+        return self._membership - self._non_membership
 
-        Returns:
-        float: Jaccard similarity coefficient.
-        """
+    def accuracy(self) -> float:
+        """Accuracy function H = μ + ν."""
+        return self._membership + self._non_membership
 
-        intersection = min(self.membership, other.membership) + min(self.non_membership, other.non_membership) + min(self.uncertainty, other.uncertainty)
-        union = max(self.membership, other.membership) + max(self.non_membership, other.non_membership) + max(self.uncertainty, other.uncertainty)
-        similarity = intersection / union
-        
-        return similarity
-
-    def fuzzy_relation(self, other):
-        """
-        Compute the fuzzy relation matrix between two IFS.
-
-        Parameters:
-        - other (IFS): The IFS to form a relation with.
-
-        Returns:
-        np.ndarray: Fuzzy relation matrix.
-        
-        """
-
-        relation_matrix = np.zeros((3, 3))
-        for i, component_i in enumerate([self.membership, self.non_membership, self.uncertainty]):
-            for j, component_j in enumerate([other.membership, other.non_membership, other.uncertainty]):
-                relation_matrix[i, j] = min(component_i, component_j)
-        return relation_matrix
+def ifs(mu: Number, nu: Number, pi: Optional[Number] = None) -> IFS:
+    """Shorthand constructor."""
+    return IFS(mu, nu, pi)
