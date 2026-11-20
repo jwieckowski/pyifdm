@@ -1,71 +1,66 @@
-# Copyright (c) 2022 Jakub Więckowski
+# Copyright (c) 2022-2026 Jakub Więckowski & contributors
+from __future__ import annotations
 
-from .aras.ifs import ifs
-from .ifs.normalization import swap_normalization
-from .ifs.score import wan_dong_score_1
-from ..helpers import rank
+from typing import Callable, Optional
+import numpy as np
 
-from .validator import Validator
+from .base import IFMCDAMethod
+from pyifdm.utils.normalization import swap_normalization
+from pyifdm.utils.score import wan_dong_score_1
 
+class ifARAS(IFMCDAMethod):
+    """
+    Intuitionistic Fuzzy ARAS (Additive Ratio Assessment).
+    """
 
-class ifARAS():
-    def __init__(self, normalization=swap_normalization, score=wan_dong_score_1):
-        """
-            Create Intuitionistic Fuzzy ARAS method object with normalization and score functions
+    descending = True
+    requires_mixed_types = False
 
-            Parameters
-            ----------
-                normalization : callable, default=swap_normalization
-                        Function used to calculate normalized decision matrix
-
-                score : callable, default=wan_dong_score_1
-                        Function used to calculate crisp score of IFS 
-        """
-
+    def __init__(
+        self,
+        normalization: Optional[Callable] = swap_normalization,
+        score: Callable = wan_dong_score_1
+    ) -> None:
+        super().__init__()
         self.normalization = normalization
         self.score = score
-        self.__descending = True
 
-    def __call__(self, matrix, weights, types):
-        """
-            Calculates the alternatives preferences
+    def _evaluate(
+        self,
+        matrix: np.ndarray,
+        weights: np.ndarray,
+        types: np.ndarray,
+    ) -> np.ndarray:
+        R = np.zeros((matrix.shape[1], matrix.shape[2]), dtype=object)
+        for j in range(matrix.shape[1]):
+            if types[j] == 1:
+                R[j] = matrix[np.argmax(matrix[:, j, 0]), j]
+            else:
+                R[j] = matrix[np.argmin(matrix[:, j, 0]), j]
 
-            Parameters
-            ----------
-                matrix : ndarray
-                    Decision matrix / alternatives data.
-                    Alternatives are in rows and Criteria are in columns.
+        # extended decision matrix
+        exmatrix = np.ones((matrix.shape[0]+1, matrix.shape[1], matrix.shape[2]), dtype=object)
+        exmatrix[0] = R
+        exmatrix[1:] = matrix
 
-                weights : ndarray
-                    Vector of criteria weights in a crisp or Intuitionistic Fuzzy form
+        # normalized matrix
+        nmatrix = self.normalization(exmatrix, types)
 
-                types : ndarray
-                    Types of criteria, 1 profit, -1 cost
+        # weighted normalized matrix
+        wmatrix = np.zeros((nmatrix.shape[0], nmatrix.shape[1], nmatrix.shape[2]), dtype=object)
 
-            Returns
-            ----------
-                ndarray:
-                    Preference calculated for alternatives. Greater values are placed higher in ranking
+        # crisp weights
+        if weights.ndim == 1:
+            weights = np.repeat(weights, 2).reshape((len(weights), 2))
 
-        """
-        # validate data
-        Validator.ifs_validation(matrix, weights, types)
-    
-        self.preferences = ifs(matrix, weights, types, self.normalization, self.score).astype(float)
-        return self.preferences
+        wmatrix[:, :, 0] = 1 - (1 - nmatrix[:, :, 0])**weights[:, 0]
+        wmatrix[:, :, 1] = nmatrix[:, :, 1]**weights[:, 1]
 
-    def rank(self):
-        """
-            Calculates the alternatives ranking based on the obtained preferences
+        # self.score values
+        S = self.score(wmatrix)
 
-            Returns
-            ----------
-                ndarray:
-                    Ranking of alternatives
-        """
-        try:
-            return rank(self.preferences, self.__descending)
-        except AttributeError:
-            raise AttributeError('Cannot calculate ranking before assessment')
-        except:
-            raise ValueError('Error occurred in ranking calculation')
+        # overal performance rating
+        M = np.sum(S, axis=1)
+
+        Q = M[1:] / M[0]
+        return Q

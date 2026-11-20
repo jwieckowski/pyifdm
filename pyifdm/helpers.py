@@ -1,58 +1,66 @@
-# Copyright (c) 2022 Jakub Więckowski
+# Copyright (c) 2022-2026 Jakub Więckowski & contributors
+
+from __future__ import annotations
+
+from typing import Union
 
 import numpy as np
 
 __all__ = [
-    'rank',
-    'generate_ifs_matrix'
+    "rank",
+    "generate_ifs_matrix",
 ]
 
 
-def rank(x, descending=True):
+def rank(
+    x: Union[np.ndarray, list],
+    descending: bool = True,
+) -> np.ndarray:
     """
-        Calculates ranking of given values with the given direction, default descending order
+    Calculate ranking of values (average ranks for ties).
 
-        Parameters
-        ----------
-            x: ndarray
-                Array with values
+    Parameters
+    ----------
+    x :
+        Preference values.
+    descending :
+        If True, higher values receive better (lower) ranks.
 
-            descending: boolean, default=True
-                Switch to change ranking order
-
-        Returns
-        -------
-            ndarray
-                Ranking with given order
-
+    Returns
+    -------
+    ndarray
+        Ranking starting from 1.
     """
-    s = [sorted(x, reverse=descending).index(r)+1 for r in x]
-    return np.array([(ss * s.count(ss) + s.count(ss) - 1) / s.count(ss) if s.count(ss) <= 2 else np.sum(list(range(ss, ss+s.count(ss)))) / s.count(ss) for ss in s])
+    x = np.asarray(x, dtype=float)
+    # argsort twice gives ranks; handle ties by averaging
+    order = np.argsort(-x if descending else x)
+    ranks = np.empty_like(order, dtype=float)
+    ranks[order] = np.arange(1, len(x) + 1)
+
+    # average ties
+    unique, inverse, counts = np.unique(
+        x, return_inverse=True, return_counts=True
+    )
+    for i, c in enumerate(counts):
+        if c > 1:
+            idx = inverse == i
+            ranks[idx] = ranks[idx].mean()
+    return ranks
 
 
-def generate_ifs_matrix(m, n):
+def generate_ifs_matrix(m: int, n: int) -> np.ndarray:
     """
-        Generates random Intuitionistic Fuzzy matrix with m alternatives and n criteria
+    Generate a random IFS decision matrix of shape (m, n, 2).
 
-        Parameters
-        ----------
-            m: int
-                Number of alternatives
-
-            n: int
-                Number of criteria
-
-        Returns
-        -------
-            ndarray
-                Matrix with random IFSs
-
+    Membership and non-membership are drawn uniformly such that
+    μ + v ≤ 1.
     """
-
-    arr = []
-    while len(arr) < m*n:
-        t = np.random.random((2, 1))
-        if np.sum(t) <= 1:
-            arr.append(t)
-    return np.array(arr, dtype=object).reshape((m, n, 2)).astype(float)
-
+    matrix = np.zeros((m, n, 2))
+    for i in range(m):
+        for j in range(n):
+            while True:
+                mu, nu = np.random.random(2)
+                if mu + nu <= 1.0:
+                    matrix[i, j] = [mu, nu]
+                    break
+    return matrix

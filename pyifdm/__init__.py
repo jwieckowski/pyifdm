@@ -1,6 +1,7 @@
-from . import methods
-from . import correlations
-from . import helpers
-from . import weights
+"""
+pyifdm - Multi-Criteria Decision Analysis with Intuitionistic Fuzzy Sets.
+"""
+
+__version__ = "1.2.0"
+
 from . import IFS
-from . import graphs

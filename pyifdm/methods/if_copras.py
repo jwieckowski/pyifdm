@@ -1,70 +1,60 @@
-# Copyright (c) 2022 Jakub Więckowski
+# Copyright (c) 2022-2026 Jakub Więckowski & contributors
 
-from .copras.ifs import ifs
-from .ifs.score import thakur_score
-from ..helpers import rank
+from __future__ import annotations
 
-from .validator import Validator
+from typing import Callable, Optional
+import numpy as np
 
+from .base import IFMCDAMethod
+from pyifdm.utils.score import thakur_score
 
-class ifCOPRAS():
-    def __init__(self, score=thakur_score, normalization=None):
-        """
-        Create Intuitionistic Fuzzy COPRAS method object with normalization and score functions
+class ifCOPRAS(IFMCDAMethod):
+    """
+    Intuitionistic Fuzzy COPRAS (Complex Proportional Assessment).
+    """
 
-        Parameters
-        ----------
-            score: callable, default=thakur_score
-                Function used to calculate crisp score of IFS
-            
-            normalization: callable, default=None
-                Function used to calculate normalized decision matrix
+    descending = True
+    requires_mixed_types = False
 
-        """
-
+    def __init__(
+        self,
+        score: Callable = thakur_score,
+        normalization: Optional[Callable] = None
+    ) -> None:
+        super().__init__()
         self.score = score
         self.normalization = normalization
-        self.__descending = True
 
-    def __call__(self, matrix, weights, types):
-        """
-        Calculates the alternatives preferences
+    def _evaluate(
+        self,
+        matrix: np.ndarray,
+        weights: np.ndarray,
+        types: np.ndarray,
+    ) -> np.ndarray:
+        if self.normalization is not None:
+            nmatrix = self.normalization(matrix, types)
+        else:
+            nmatrix = matrix.copy()
 
-        Parameters
-        ----------
-            matrix : ndarray
-                Decision matrix / alternatives data.
-                Alternatives are in rows and Criteria are in columns.
+        # weighted matrix
+        wmatrix = np.zeros(nmatrix.shape)
 
-            weights : ndarray
-                Vector of criteria weights in a crisp or Intuitionistic Fuzzy form
+        # crisp weights
+        if weights.ndim == 1:
+            weights = np.repeat(weights, 2).reshape((len(weights), 2))
 
-            types : ndarray
-                Types of criteria, 1 profit, -1 cost
+        wmatrix[:, :, 0] = np.sqrt(1 - (1 - nmatrix[:, :, 0] ** 2) ** weights[:, 0])
+        wmatrix[:, :, 1] = np.sqrt((nmatrix[:, :, 1] ** 2) ** weights[:, 1])
 
-        Returns
-        ----------
-            ndarray:
-                Preference calculated for alternatives. Greater values are placed higher in ranking
-        """
-        # validate data
-        Validator.ifs_validation(matrix, weights, types)
+        # Score function
+        s = self.score(wmatrix)
 
-        self.preferences = ifs(matrix, weights, types, self.normalization, self.score).astype(float)
-        return self.preferences
+        # Determine the maximizing and minimizing index
+        Sp = np.sum(s[:, types == 1], axis=1) / types[types == 1].shape
+        Sr = np.sum(s[:, types == -1], axis=1) / types[types == -1].shape
 
-    def rank(self):
-        """
-            Calculates the alternatives ranking based on the obtained preferences
+        # Determine the relative significance value of each alternative
+        N = np.sum(np.exp(Sr)) / np.sum(1 / np.exp(Sr))
+        Q =  Sp + (N / np.exp(Sr))
 
-            Returns
-            ----------
-                ndarray:
-                    Ranking of alternatives
-        """
-        try:
-            return rank(self.preferences, self.__descending)
-        except AttributeError:
-            raise AttributeError('Cannot calculate ranking before assessment')
-        except:
-            raise ValueError('Error occurred in ranking calculation')
+        return Q / np.max(Q)

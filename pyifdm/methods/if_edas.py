@@ -1,71 +1,61 @@
-# Copyright (c) 2022 Jakub Więckowski
+# Copyright (c) 2022-2026 Jakub Więckowski & contributors
 
-from .edas.ifs import ifs
-from .ifs.normalization import swap_normalization
-from .ifs.score import liu_wang_score
-from ..helpers import rank
+from __future__ import annotations
 
-from .validator import Validator
+from typing import Callable, Optional
+import numpy as np
 
+from .base import IFMCDAMethod
+from pyifdm.utils.normalization import swap_normalization
+from pyifdm.utils.score import liu_wang_score
 
-class ifEDAS():
-    def __init__(self, normalization=swap_normalization, score=liu_wang_score):
-        """
-        Create Intuitionistic Fuzzy EDAS method object with normalization function
+class ifEDAS(IFMCDAMethod):
+    """
+    Intuitionistic Fuzzy EDAS (Evaluation based on Distance from Average Solution).
+    """
 
-        Parameters
-        ----------
-            normalization: callable, default=swap_normalization
-                Function used to calculate normalized decision matrix
+    descending = True
+    requires_mixed_types = False
 
-            score: callable, default=liu_wang_score
-                Function used to calculate crisp score of IFS
-
-        """
-
+    def __init__(
+        self,
+        normalization: Callable = swap_normalization,
+        score: Callable = liu_wang_score
+    ) -> None:
+        super().__init__()
         self.normalization = normalization
         self.score = score
-        self.__descending = True
 
-    def __call__(self, matrix, weights, types):
-        """
-        Calculates the alternatives preferences
+    def _evaluate(
+        self,
+        matrix: np.ndarray,
+        weights: np.ndarray,
+        types: np.ndarray,
+    ) -> np.ndarray:
+        nmatrix = self.normalization(matrix, types)
 
-        Parameters
-        ----------
-            matrix : ndarray
-                Decision matrix / alternatives data.
-                Alternatives are in rows and Criteria are in columns.
+        # average solution
+        av = np.array([[1 - (np.prod(1 - nmatrix[:, j, 0]))**(1/nmatrix.shape[0]),
+                      (np.prod(nmatrix[:, j, 1]))**(1/nmatrix.shape[0])] for j in range(nmatrix.shape[1])])
 
-            weights : ndarray
-                Vector of criteria weights in a crisp or Intuitionistic Fuzzy form
+        # positive and negative distances from average
+        pda, nda = np.zeros((nmatrix.shape[0], nmatrix.shape[1])), np.zeros((nmatrix.shape[0], nmatrix.shape[1]))
+        for i in range(nmatrix.shape[0]):
+            for j in range(nmatrix.shape[1]):
+                pda[i, j] = np.max([0, (self.score(nmatrix[i, j]) - self.score(av[j]))]) / self.score(av[j])
+                nda[i, j] = np.max([0, (self.score(av[j]) - self.score(nmatrix[i, j]))]) / self.score(av[j])
 
-            types : ndarray
-                Types of criteria, 1 profit, -1 cost
+        # crisp weights
+        if weights.ndim == 2:
+            weights = np.array([self.score(w) for w in weights])
 
-        Returns
-        ----------
-            ndarray:
-                Preference calculated for alternatives. Greater values are placed higher in ranking
-        """
-        # validate data
-        Validator.ifs_validation(matrix, weights, types)
+        # weighted positive and negative distances
+        sp = np.sum(weights * pda, axis=1)
+        sn = np.sum(weights * nda, axis=1)
 
-        self.preferences = ifs(matrix, weights, types, self.normalization, self.score).astype(float)
-        return self.preferences
-        
-    def rank(self):
-        """
-            Calculates the alternatives ranking based on the obtained preferences
+        # normalized weighted positive and negative distances
+        nsp = sp / np.max(sp) if np.max(sp) != 0 else np.zeros((sp.shape))
+        nsn = 1 - sn / np.max(sn) if np.max(sn) != 0 else np.zeros((sn.shape))
 
-            Returns
-            ----------
-                ndarray:
-                    Ranking of alternatives
-        """
-        try:
-            return rank(self.preferences, self.__descending)
-        except AttributeError:
-            raise AttributeError('Cannot calculate ranking before assessment')
-        except:
-            raise ValueError('Error occurred in ranking calculation')
+        # appraisal score
+        return 1/2 * (nsp + nsn)
