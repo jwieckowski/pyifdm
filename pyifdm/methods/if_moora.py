@@ -1,70 +1,77 @@
-# Copyright (c) 2022 Jakub Więckowski
+# Copyright (c) 2022-2026 Jakub Więckowski & contributors
 
-from .moora.ifs import ifs
-from .ifs.score import zhang_xu_score_2
-from ..helpers import rank
+from __future__ import annotations
 
-from .validator import Validator
+from typing import Callable, Optional
+import numpy as np
 
-class ifMOORA():
-    def __init__(self, score=zhang_xu_score_2, normalization=None):
-        """
-        Create Intuitionistic Fuzzy MOORA method object with normalization and score functions
+from .base import IFMCDAMethod
+from pyifdm.utils.score import zhang_xu_score_2
 
-        Parameters
-        ----------
-            score: callable, default=zhang_xu_score_2
-                Function used to calculate crisp score of IFS
-            
-            normalization: callable, default=None
-                Function used to normalize the decision matrix
+class ifMOORA(IFMCDAMethod):
+    """
+    Intuitionistic Fuzzy MOORA (Multi-Objective Optimization by Ratio Analysis).
+    """
 
-        """
+    descending = True
+    requires_mixed_types = True
 
-        self.normalization = normalization
+    def __init__(
+        self,
+        score: Callable = zhang_xu_score_2,
+        normalization: Optional[Callable] = None
+    ) -> None:
+        super().__init__()
         self.score = score
-        self.__descending = True
+        self.normalization = normalization
 
-    def __call__(self, matrix, weights, types):
-        """
-        Calculates the alternatives preferences
+    def _evaluate(
+        self,
+        matrix: np.ndarray,
+        weights: np.ndarray,
+        types: np.ndarray,
+    ) -> np.ndarray:
+        if self.normalization is not None:
+            nmatrix = self.normalization(matrix, types)
+        else:
+            nmatrix = matrix.copy()
 
-        Parameters
-        ----------
-            matrix : ndarray
-                Decision matrix / alternatives data.
-                Alternatives are in rows and Criteria are in columns.
+        # weighted matrix
+        wmatrix = np.zeros((nmatrix.shape[0], nmatrix.shape[1], 3), dtype=object)
 
-            weights : ndarray
-                Vector of criteria weights in a crisp or Intuitionistic Fuzzy form
+        # crisp weights
+        if weights.ndim == 1:
+            weights = np.repeat(weights, 2).reshape((len(weights), 2))
 
-            types : ndarray
-                Types of criteria, 1 profit, -1 cost.
-                Criteria types cannot be all profit or all cost.
+        wmatrix[:, :, 0] = nmatrix[:, :, 0] * weights[:, 0]
+        wmatrix[:, :, 1] = nmatrix[:, :, 1] + weights[:, 1] - nmatrix[:, :, 1] * weights[:, 1]
+        wmatrix[:, :, 2] = 1 - wmatrix[:, :, 1] - wmatrix[:, :, 0]
 
-        Returns
-        ----------
-            ndarray:
-                Preference calculated for alternatives. Greater values are placed higher in ranking
-        """
-        # validate data
-        Validator.ifs_validation(matrix, weights, types, mixed_types=True)
+        # sum of costs and benefits
+        Sp, Sm  = np.zeros((matrix.shape[0], 3)), np.zeros((matrix.shape[0], 3))
+        profit_indexes = np.where(types == 1)
+        cost_indexes = np.where(types == -1)
+        for i in range(wmatrix.shape[0]):
+            profit = wmatrix[i, profit_indexes[0][0]]
+            cost = wmatrix[i, cost_indexes[0][0]]
 
-        self.preferences = ifs(matrix, weights, types, self.normalization, self.score).astype(float)
-        return self.preferences
+            for idx in profit_indexes[0][1:]:
+                profit[0] = profit[0] + wmatrix[i, idx, 0] - profit[0] * wmatrix[i, idx, 0]
+                profit[1] *= wmatrix[i, idx, 1]
 
-    def rank(self):
-        """
-            Calculates the alternatives ranking based on the obtained preferences
+            for idx in cost_indexes[0][1:]:
+                cost[0] = cost[0] + wmatrix[i, idx, 0] - cost[0] * wmatrix[i, idx, 0]
+                cost[1] *= wmatrix[i, idx, 1]
 
-            Returns
-            ----------
-                ndarray:
-                    Ranking of alternatives
-        """
-        try:
-            return rank(self.preferences, self.__descending)
-        except AttributeError:
-            raise AttributeError('Cannot calculate ranking before assessment')
-        except:
-            raise ValueError('Error occurred in ranking calculation')
+            # Sp.append([profit[0], profit[1], 1 - profit[0] - profit[1]])
+            # Sm.append([cost[0], cost[1], 1 - cost[0] - cost[1]])
+            Sp[i] = [profit[0], profit[1], 1 - profit[0] - profit[1]]
+            Sm[i] = [cost[0], cost[1], 1 - cost[0] - cost[1]]
+
+        # Sp, Sm = np.array(Sp), np.array(Sm) 
+
+        # self.score functions
+        Dp = self.score(Sp)
+        Dm = self.score(Sm)
+
+        return Dp - Dm

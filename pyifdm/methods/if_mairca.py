@@ -1,76 +1,84 @@
-# Copyright (c) 2022 Jakub Więckowski
+# Copyright (c) 2022-2026 Jakub Więckowski & contributors
 
-from .mairca.ifs import ifs
-from .ifs.normalization import minmax_normalization
-from .ifs.distance import normalized_euclidean_distance
-from .ifs.score import liu_wang_score
-from ..helpers import rank
+from __future__ import annotations
 
-from .validator import Validator
+from typing import Callable, Optional
+import numpy as np
 
+from .base import IFMCDAMethod
+from pyifdm.utils.normalization import minmax_normalization
+from pyifdm.utils.distance import normalized_euclidean_distance
+from pyifdm.utils.score import liu_wang_score
 
-class ifMAIRCA():
-    def __init__(self, normalization=minmax_normalization, distance=normalized_euclidean_distance, score=liu_wang_score):
-        """
-        Create Intuitionistic Fuzzy MAIRCA method object with normalization and distance functions
+class ifMAIRCA(IFMCDAMethod):
+    """
+    Intuitionistic Fuzzy MAIRCA (MultiAttributive Ideal-Real Comparative Analysis).
+    """
 
-        Parameters
-        ----------
-            normalization: callable, default=minmax_normalization
-                Function used to normalize the decision matrix
+    descending = True
+    requires_mixed_types = False
 
-            distance: callable, default=normalized_euclidean_distance
-                Function used to calculate distance between two IFS
-
-            score: callable, default=liu_wang_score
-                Function used to calculate crisp score of IFS
-
-        """
-
+    def __init__(
+        self,
+        normalization: Callable = minmax_normalization,
+        distance: Callable = normalized_euclidean_distance,
+        score: Callable = liu_wang_score
+    ) -> None:
+        super().__init__()
         self.normalization = normalization
         self.distance = distance
         self.score = score
-        self.__descending = True
 
-    def __call__(self, matrix, weights, types):
-        """
-        Calculates the alternatives preferences
+    def _evaluate(
+        self,
+        matrix: np.ndarray,
+        weights: np.ndarray,
+        types: np.ndarray,
+    ) -> np.ndarray:
+        f = 1
+        if 'normalized' in self.distance.__name__:
+            f = 1/(2*matrix.shape[1])
 
-        Parameters
-        ----------
-            matrix : ndarray
-                Decision matrix / alternatives data.
-                Alternatives are in rows and Criteria are in columns.
+        # self.distance measures
+        dm = np.zeros((matrix.shape[0], matrix.shape[1], 2), dtype=object)
+        for i in range(matrix.shape[0]):
+            for j in range(matrix.shape[1]):
+                if self.distance.__name__ == 'normalized_euclidean_distance':
+                    dm[i, j, 0] = np.sqrt(f * self.distance(matrix[i, j], np.array([1, 0, 0])))
+                    dm[i, j, 1] = np.sqrt(f * self.distance(matrix[i, j], np.array([0, 1, 0])))
+                elif self.distance.__name__ == 'normalized_hamming_distance':
+                    dm[i, j, 0] = f * self.distance(matrix[i, j], np.array([1, 0, 0]))
+                    dm[i, j, 1] = f * self.distance(matrix[i, j], np.array([0, 1, 0]))
+                else:
+                    dm[i, j, 0] = self.distance(matrix[i, j], np.array([1, 0, 0]))
+                    dm[i, j, 1] = self.distance(matrix[i, j], np.array([0, 1, 0]))
 
-            weights : ndarray
-                Vector of criteria weights in a crisp or Intuitionistic Fuzzy form
+        if self.normalization.__name__ != 'minmax_normalization':
+            dm =  self.normalization(dm, types)
 
-            types : ndarray
-                Types of criteria, 1 profit, -1 cost
+        # closeness coefficient
+        cw = dm[:, :, 1] / (dm[:, :, 1] + dm[:, :, 0])
 
-        Returns
-        ----------
-            ndarray:
-                Preference calculated for alternatives. Greater values are placed higher in ranking
-        """
-        # validate data
-        Validator.ifs_validation(matrix, weights, types)
+        # normalized matrix
+        if self.normalization.__name__ == 'minmax_normalization':
+            nmatrix = self.normalization(cw, types)
+        else:
+            nmatrix = cw
 
-        self.preferences = ifs(matrix, weights, types, self.normalization, self.distance, self.score).astype(float)
-        return self.preferences
+        # crisp weights
+        if weights.ndim == 2:
+            weights = np.array([self.score(w) for w in weights])
 
-    def rank(self):
-        """
-            Calculates the alternatives ranking based on the obtained preferences
+        # theoretical intuitionistic fuzzy decision matrix
+        tdm = 1 / matrix.shape[0] * nmatrix * weights
+        tdm = np.tile(np.max(tdm, axis=0), nmatrix.shape[0]).reshape((nmatrix.shape[0], nmatrix.shape[1]))
 
-            Returns
-            ----------
-                ndarray:
-                    Ranking of alternatives
-        """
-        try:
-            return rank(self.preferences, self.__descending)
-        except AttributeError:
-            raise AttributeError('Cannot calculate ranking before assessment')
-        except:
-            raise ValueError('Error occurred in ranking calculation')
+        # real evaluation matrix
+        rem = nmatrix * tdm
+
+        # gap matrix
+        gm = tdm - rem
+
+        # utility self.score
+        s = np.sum(gm, axis=1)
+        return s

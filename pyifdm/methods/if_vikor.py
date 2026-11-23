@@ -1,74 +1,71 @@
-# Copyright (c) 2022 Jakub Więckowski
+# Copyright (c) 2022-2026 Jakub Więckowski & contributors
 
+from __future__ import annotations
+
+from typing import Callable, Optional
 import numpy as np
-from .vikor.ifs import ifs
-from .ifs.distance import hamming_distance
-from ..helpers import rank
 
-from .validator import Validator
+from .base import IFMCDAMethod
+from pyifdm.utils.distance import hamming_distance
 
+class ifVIKOR(IFMCDAMethod):
+    """
+    Intuitionistic Fuzzy VIKOR. Returns preference rows (S, R, Q); lower is better.
+    """
 
-class ifVIKOR():
-    def __init__(self, distance=hamming_distance, normalization=None, v=0.5):
-        """
-        Creates Intuitionistic Fuzzy VIKOR method object with normalization and distance functions
+    descending = False
+    requires_mixed_types = False
 
-        Parameters
-        ----------
-            distance: callable, default=hamming_distance
-                Function used to calculate distance between two IFS
-            
-            normalization: callable, default=None
-                Function used to normalize the decision matrix
-
-            v : float, default=0.5
-                Weight of the strategy (see VIKOR algorithm explanation).
-        """
-
-        self.normalization = normalization
+    def __init__(
+        self,
+        distance: Callable = hamming_distance,
+        normalization: Optional[Callable] = None,
+        v: float = 0.5
+    ) -> None:
+        super().__init__()
         self.distance = distance
-        self.v = v
-        self.__descending = False
+        self.normalization = normalization
+        self.v = float(v)
 
-    def __call__(self, matrix, weights, types):
-        """
-        Calculates the alternatives preferences
+    def _evaluate(
+        self,
+        matrix: np.ndarray,
+        weights: np.ndarray,
+        types: np.ndarray,
+    ) -> np.ndarray:
+        if self.normalization is not None:
+            nmatrix = self.normalization(matrix, types)
+        else:
+            nmatrix = matrix.copy()
 
-        Parameters
-        ----------
-            matrix : ndarray
-                Decision matrix / alternatives data.
-                Alternatives are in rows and Criteria are in columns.
+        # postive and negative ideal solution
+        pis, nis = np.zeros((nmatrix.shape[1], ), dtype=object), np.zeros((nmatrix.shape[1], ), dtype=object)
+        for j in range(matrix.shape[1]):
+            pis[j] = nmatrix[np.argmax(nmatrix[:, j, 0]), j]
+            nis[j] = nmatrix[np.argmin(nmatrix[:, j, 0]), j]
 
-            weights : ndarray
-                Vector of criteria weights in a crisp or Intuitionistic Fuzzy form
+        f = 1
+        if 'normalized' in self.distance.__name__:
+            f = 1/(2*matrix.shape[1])
 
-            types : ndarray
-                Types of criteria, 1 profit, -1 cost
-
-        Returns
-        ----------
-            ndarray:
-                Preference calculated for alternatives. Lower values are placed higher in ranking
-        """
         # validate data
-        Validator.ifs_validation(matrix, weights, types)
+        if any([all(p == n) for p, n in zip(pis, nis)]):
+            raise ValueError('Matrix should not contain same values within a single column')
 
-        self.preferences = ifs(matrix, weights, types, self.normalization, self.distance, self.v)
-        return self.preferences
+        # calculation of S and R rankings
+        S, R, Q = np.zeros((nmatrix.shape[0], )), np.zeros((nmatrix.shape[0], )), np.zeros((nmatrix.shape[0], ))
+        for i in range(matrix.shape[0]):
+            if self.distance.__name__== 'normalized_euclidean_distance':
+                S[i] = np.sum([weights[j] * (np.sqrt(f * self.distance(pis[j], nmatrix[i, j])) / np.sqrt(f * self.distance(pis[j], nis[j]))) for j in range(nmatrix.shape[1])])
+                R[i] = np.max([weights[j] * (np.sqrt(f * self.distance(pis[j], nmatrix[i, j])) / np.sqrt(f * self.distance(pis[j], nis[j]))) for j in range(nmatrix.shape[1])])
+            elif self.distance.__name__== 'normalized_hamming_distance':
+                S[i] = np.sum([weights[j] * ((f * self.distance(pis[j], nmatrix[i, j])) / (f * self.distance(pis[j], nis[j]))) for j in range(nmatrix.shape[1])])
+                R[i] = np.max([weights[j] * ((f * self.distance(pis[j], nmatrix[i, j])) / (f * self.distance(pis[j], nis[j]))) for j in range(nmatrix.shape[1])])
+            else:
+                S[i] = np.sum([weights[j] * (self.distance(pis[j], nmatrix[i, j]) / self.distance(pis[j], nis[j]))for j in range(nmatrix.shape[1])])
+                R[i] = np.max([weights[j] * (self.distance(pis[j], nmatrix[i, j]) / self.distance(pis[j], nis[j]))for j in range(nmatrix.shape[1])])
 
-    def rank(self):
-        """
-            Calculates the alternatives ranking based on the obtained preferences
+        # calculation of the compromise ranking Q
+        Q = self.v * ((S - np.min(S)) / (np.max(S) - np.min(S))) + (1 - self.v) * ((R - np.min(R)) / (np.max(R) - np.min(R)))
 
-            Returns
-            ----------
-                ndarray:
-                    Ranking of alternatives for the S, R, Q approaches
-        """
-        try:
-            return np.array([rank(pref, self.__descending) for pref in self.preferences])
-        except AttributeError:
-            raise AttributeError('Cannot calculate ranking before assessment')
-        except:
-            raise ValueError('Error occurred in ranking calculation')
+        return np.nan_to_num(S), np.nan_to_num(R), np.nan_to_num(Q)

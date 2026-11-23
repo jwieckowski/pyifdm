@@ -1,66 +1,55 @@
-# Copyright (c) 2022 Jakub Więckowski
+# Copyright (c) 2022-2026 Jakub Więckowski & contributors
 
-from .ocra.ifs import ifs
-from .ifs.score import chen_score_1
-from ..helpers import rank
+from __future__ import annotations
 
-from .validator import Validator
+from typing import Callable
+import numpy as np
 
-class ifOCRA():
-    def __init__(self, score=chen_score_1):
-        """
-        Create Intuitionistic Fuzzy OCRA method object with normalization and score functions
+from .base import IFMCDAMethod
+from pyifdm.utils.score import chen_score_1
 
-        Parameters
-        ----------
-            score: callable, default=chen_score_1
-                Function used to calculate crisp score of IFS
+class ifOCRA(IFMCDAMethod):
+    """
+    Intuitionistic Fuzzy OCRA (Operational Competitiveness Rating).
+    """
 
-        """
+    descending = True
+    requires_mixed_types = False
 
+    def __init__(
+        self,
+        score: Callable = chen_score_1
+    ) -> None:
+        super().__init__()
         self.score = score
-        self.__descending = True
 
-    def __call__(self, matrix, weights, types):
-        """
-        Calculates the alternatives preferences
+    def _evaluate(
+        self,
+        matrix: np.ndarray,
+        weights: np.ndarray,
+        types: np.ndarray,
+    ) -> np.ndarray:
+        if not isinstance(weights[0], (float, np.floating)):
+            weights = self.score(weights)
 
-        Parameters
-        ----------
-            matrix : ndarray
-                Decision matrix / alternatives data.
-                Alternatives are in rows and Criteria are in columns.
+        # score matrix
+        smatrix = self.score(matrix)
 
-            weights : ndarray
-                Vector of criteria weights in a crisp or Intuitionistic Fuzzy form
+        #  if performance rating
+        P, Q = [], []
+        for j in range(smatrix.shape[1]):
+            if types[j] == 1:
+                P.append([weights[j] * ((smatrix[i, j]) - np.min(smatrix[:, j]) / (np.max(smatrix[:, j]) - np.min(smatrix[:, j]))) for i in range(smatrix.shape[0])])
+            else:
+                Q.append([weights[j] * ((np.max(smatrix[:, j] - smatrix[i, j]) / (np.max(smatrix[:, j]) - np.min(smatrix[:, j]))))  for i in range(smatrix.shape[0])])
 
-            types : ndarray
-                Types of criteria, 1 profit, -1 cost.
-                Criteria types cannot be all profit or all cost.
+        P = np.sum(np.array(P), axis=0)
+        Q = np.sum(np.array(Q), axis=0)
 
-        Returns
-        ----------
-            ndarray:
-                Preference calculated for alternatives. Greater values are placed higher in ranking
-        """
-        # validate data
-        Validator.ifs_validation(matrix, weights, types)
+        # linear performance rating
+        P -= np.min(P)
+        Q -= np.min(Q)
 
-        self.preferences = ifs(matrix, weights, types, self.score).astype(float)
-        return self.preferences
-
-    def rank(self):
-        """
-            Calculates the alternatives ranking based on the obtained preferences
-
-            Returns
-            ----------
-                ndarray:
-                    Ranking of alternatives
-        """
-        try:
-            return rank(self.preferences, self.__descending)
-        except AttributeError:
-            raise AttributeError('Cannot calculate ranking before assessment')
-        except:
-            raise ValueError('Error occurred in ranking calculation')
+        # overall performance rating
+        OPR = (P + Q) - np.min(P + Q)
+        return OPR
