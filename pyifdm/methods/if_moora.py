@@ -9,9 +9,7 @@ from .base import IFMCDAMethod
 from pyifdm.utils.score import zhang_xu_score_2
 
 class ifMOORA(IFMCDAMethod):
-    """
-    Intuitionistic Fuzzy MOORA (Multi-Objective Optimization by Ratio Analysis).
-    """
+    """Intuitionistic Fuzzy MOORA (Multi-Objective Optimization by Ratio Analysis)."""
 
     descending = True
     requires_mixed_types = True
@@ -19,9 +17,10 @@ class ifMOORA(IFMCDAMethod):
     def __init__(
         self,
         score: Callable = zhang_xu_score_2,
-        normalization: Optional[Callable] = None
+        normalization: Optional[Callable] = None,
+        logger=None,
     ) -> None:
-        super().__init__()
+        super().__init__(logger=logger)
         self.score = score
         self.normalization = normalization
 
@@ -32,46 +31,45 @@ class ifMOORA(IFMCDAMethod):
         types: np.ndarray,
     ) -> np.ndarray:
         if self.normalization is not None:
-            nmatrix = self.normalization(matrix, types)
+            nmatrix = np.asarray(self.normalization(matrix, types), dtype=float)
         else:
-            nmatrix = matrix.copy()
+            nmatrix = np.asarray(matrix, dtype=float).copy()
+        self._log_step("normalized_matrix", nmatrix, "Normalized decision matrix")
 
-        # weighted matrix
-        wmatrix = np.zeros((nmatrix.shape[0], nmatrix.shape[1], 3), dtype=object)
+        w = np.asarray(weights, dtype=float)
+        if w.ndim == 1:
+            w = np.repeat(w, 2).reshape((len(w), 2))
+        self._log_step("weights", w, "Criterion weights (IFS form)")
 
-        # crisp weights
-        if weights.ndim == 1:
-            weights = np.repeat(weights, 2).reshape((len(weights), 2))
-
-        wmatrix[:, :, 0] = nmatrix[:, :, 0] * weights[:, 0]
-        wmatrix[:, :, 1] = nmatrix[:, :, 1] + weights[:, 1] - nmatrix[:, :, 1] * weights[:, 1]
+        wmatrix = np.zeros((nmatrix.shape[0], nmatrix.shape[1], 3), dtype=float)
+        wmatrix[:, :, 0] = nmatrix[:, :, 0] * w[:, 0]
+        wmatrix[:, :, 1] = nmatrix[:, :, 1] + w[:, 1] - nmatrix[:, :, 1] * w[:, 1]
         wmatrix[:, :, 2] = 1 - wmatrix[:, :, 1] - wmatrix[:, :, 0]
+        self._log_step("weighted_matrix", wmatrix, "Weighted normalized matrix")
 
-        # sum of costs and benefits
-        Sp, Sm  = np.zeros((matrix.shape[0], 3)), np.zeros((matrix.shape[0], 3))
-        profit_indexes = np.where(types == 1)
-        cost_indexes = np.where(types == -1)
+        Sp = np.zeros((matrix.shape[0], 3), dtype=float)
+        Sm = np.zeros((matrix.shape[0], 3), dtype=float)
+        profit_indexes = np.where(types == 1)[0]
+        cost_indexes = np.where(types == -1)[0]
+
         for i in range(wmatrix.shape[0]):
-            profit = wmatrix[i, profit_indexes[0][0]]
-            cost = wmatrix[i, cost_indexes[0][0]]
-
-            for idx in profit_indexes[0][1:]:
+            profit = wmatrix[i, profit_indexes[0]].copy()
+            cost = wmatrix[i, cost_indexes[0]].copy()
+            for idx in profit_indexes[1:]:
                 profit[0] = profit[0] + wmatrix[i, idx, 0] - profit[0] * wmatrix[i, idx, 0]
                 profit[1] *= wmatrix[i, idx, 1]
-
-            for idx in cost_indexes[0][1:]:
+            for idx in cost_indexes[1:]:
                 cost[0] = cost[0] + wmatrix[i, idx, 0] - cost[0] * wmatrix[i, idx, 0]
                 cost[1] *= wmatrix[i, idx, 1]
-
-            # Sp.append([profit[0], profit[1], 1 - profit[0] - profit[1]])
-            # Sm.append([cost[0], cost[1], 1 - cost[0] - cost[1]])
             Sp[i] = [profit[0], profit[1], 1 - profit[0] - profit[1]]
             Sm[i] = [cost[0], cost[1], 1 - cost[0] - cost[1]]
 
-        # Sp, Sm = np.array(Sp), np.array(Sm) 
+        self._log_step("benefit_sum", Sp, "Aggregated benefit IFS")
+        self._log_step("cost_sum", Sm, "Aggregated cost IFS")
 
-        # self.score functions
-        Dp = self.score(Sp)
-        Dm = self.score(Sm)
-
-        return Dp - Dm
+        Dp = np.asarray(self.score(Sp), dtype=float)
+        Dm = np.asarray(self.score(Sm), dtype=float)
+        prefs = Dp - Dm
+        self._log_step("preferences", prefs, "Benefit score minus cost score")
+        
+        return prefs.astype(float)

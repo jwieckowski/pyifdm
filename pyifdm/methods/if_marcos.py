@@ -9,15 +9,13 @@ from pyifdm.utils.score import chen_score_1
 
 
 class ifMARCOS(IFMCDAMethod):
-    """
-    Intuitionistic Fuzzy MARCOS (Measurement of Alternatives and Ranking according to Compromise Solution).
-    """
+    """Intuitionistic Fuzzy MARCOS (Measurement of Alternatives and Ranking according to Compromise Solution)."""
 
     descending = True
     requires_mixed_types = True
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, logger=None) -> None:
+        super().__init__(logger=logger)
 
     def _evaluate(
         self,
@@ -25,25 +23,31 @@ class ifMARCOS(IFMCDAMethod):
         weights: np.ndarray,
         types: np.ndarray,
     ) -> np.ndarray:
-        if not isinstance(weights[0], (float, np.floating)):
-            weights = chen_score_1(weights)
+        w = np.asarray(weights, dtype=float)
+        if w.ndim != 1:
+            w = np.asarray(chen_score_1(w), dtype=float)
+        self._log_step("weights", w, "Crisp criterion weights")
 
-        if matrix.shape[2] == 2:
-            new_matrix = np.zeros((matrix.shape[0], matrix.shape[1], matrix.shape[2] + 1))
-            new_matrix[:, :, 0] = matrix[:, :, 0]
-            new_matrix[:, :, 1] = matrix[:, :, 1]
-            new_matrix[:, :, 2] = 1 - (matrix[:, :, 0] + matrix[:, :, 1])  
-            matrix = new_matrix
+        mat = np.asarray(matrix, dtype=float)
+        if mat.shape[2] == 2:
+            new_matrix = np.zeros((mat.shape[0], mat.shape[1], 3), dtype=float)
+            new_matrix[:, :, 0] = mat[:, :, 0]
+            new_matrix[:, :, 1] = mat[:, :, 1]
+            new_matrix[:, :, 2] = 1 - (mat[:, :, 0] + mat[:, :, 1])
+            mat = new_matrix
+        self._log_step("decision_matrix", mat, "Decision matrix with hesitation degree")
 
-        # aggregated IF decision matrix
-        matrix_p =  np.sqrt((matrix[:, :, 0] - 1)**2 + (matrix[:, :, 1] - 0)**2 + (matrix[:, :, 2] - 0)**2)
-        matrix_m =  np.sqrt((matrix[:, :, 0] - 0)**2 + (matrix[:, :, 1] - 1)**2 + (matrix[:, :, 2] - 0)**2)
+        matrix_p = np.sqrt(
+            (mat[:, :, 0] - 1) ** 2 + (mat[:, :, 1] - 0) ** 2 + (mat[:, :, 2] - 0) ** 2
+        )
+        matrix_m = np.sqrt(
+            (mat[:, :, 0] - 0) ** 2 + (mat[:, :, 1] - 1) ** 2 + (mat[:, :, 2] - 0) ** 2
+        )
         if_matrix = matrix_m / (matrix_m + matrix_p)
+        self._log_step("crisp_matrix", if_matrix, "Aggregated crisp IF decision matrix")
 
-        # Extended initial IF decision matrix
-        exmatrix = np.zeros((if_matrix.shape[0] + 2, if_matrix.shape[1]))
+        exmatrix = np.zeros((if_matrix.shape[0] + 2, if_matrix.shape[1]), dtype=float)
         exmatrix[:-2] = if_matrix
-
         for i in range(if_matrix.shape[1]):
             if types[i] == 1:
                 exmatrix[-2, i] = np.max(if_matrix[:, i])
@@ -51,27 +55,31 @@ class ifMARCOS(IFMCDAMethod):
             else:
                 exmatrix[-2, i] = np.min(if_matrix[:, i])
                 exmatrix[-1, i] = np.max(if_matrix[:, i])
+        self._log_step(
+            "extended_matrix",
+            exmatrix,
+            "Extended matrix with ideal and anti-ideal rows",
+        )
 
-        # normalized matrix
         nmatrix = exmatrix.copy()
-        nmatrix[:, types == 1] = exmatrix[:, types == 1] / np.max(exmatrix[:, types == 1])
-        nmatrix[:, types == -1] = np.min(exmatrix[:, types == -1]) / exmatrix[:, types == -1]
+        nmatrix[:, types == 1] = exmatrix[:, types == 1] / np.max(exmatrix[:, types == 1], axis=0)
+        nmatrix[:, types == -1] = np.min(exmatrix[:, types == -1], axis=0) / exmatrix[:, types == -1]
+        self._log_step("normalized_matrix", nmatrix, "Normalized extended matrix")
 
-        # weighted matrix
-        wmatrix = nmatrix * weights
+        wmatrix = nmatrix * w
+        self._log_step("weighted_matrix", wmatrix, "Weighted normalized matrix")
 
-        # s matrix
         smatrix = np.sum(wmatrix, axis=1)
+        self._log_step("s_matrix", smatrix, "Row sums of weighted matrix")
 
-        # utility degree
         km = (smatrix / smatrix[-1])[:-2]
         kp = (smatrix / smatrix[-2])[:-2]
+        self._log_step("utility_km", km, "Utility degree relative to anti-ideal")
+        self._log_step("utility_kp", kp, "Utility degree relative to ideal")
 
-        # anti-ideal and ideal solutions utility functions
         fkm = kp / (kp + km)
         fkp = km / (kp + km)
-
-        # final utility function
-        f = (kp + km) / ( 1 + ((1 - fkp) / fkp) + ((1 - fkm) / fkm) )
-
-        return f
+        f = (kp + km) / (1 + ((1 - fkp) / fkp) + ((1 - fkm) / fkm))
+        self._log_step("preferences", f, "Final utility function values")
+        
+        return f.astype(float)

@@ -11,9 +11,7 @@ from pyifdm.utils.distance import normalized_euclidean_distance
 from pyifdm.utils.score import liu_wang_score
 
 class ifMAIRCA(IFMCDAMethod):
-    """
-    Intuitionistic Fuzzy MAIRCA (MultiAttributive Ideal-Real Comparative Analysis).
-    """
+    """Intuitionistic Fuzzy MAIRCA (MultiAttributive Ideal-Real Comparative Analysis)."""
 
     descending = True
     requires_mixed_types = False
@@ -22,9 +20,10 @@ class ifMAIRCA(IFMCDAMethod):
         self,
         normalization: Callable = minmax_normalization,
         distance: Callable = normalized_euclidean_distance,
-        score: Callable = liu_wang_score
+        score: Callable = liu_wang_score,
+        logger=None,
     ) -> None:
-        super().__init__()
+        super().__init__(logger=logger)
         self.normalization = normalization
         self.distance = distance
         self.score = score
@@ -35,50 +34,57 @@ class ifMAIRCA(IFMCDAMethod):
         weights: np.ndarray,
         types: np.ndarray,
     ) -> np.ndarray:
-        f = 1
-        if 'normalized' in self.distance.__name__:
-            f = 1/(2*matrix.shape[1])
+        f = 1.0
+        if "normalized" in self.distance.__name__:
+            f = 1 / (2 * matrix.shape[1])
 
-        # self.distance measures
-        dm = np.zeros((matrix.shape[0], matrix.shape[1], 2), dtype=object)
+        dm = np.zeros((matrix.shape[0], matrix.shape[1], 2), dtype=float)
         for i in range(matrix.shape[0]):
             for j in range(matrix.shape[1]):
-                if self.distance.__name__ == 'normalized_euclidean_distance':
-                    dm[i, j, 0] = np.sqrt(f * self.distance(matrix[i, j], np.array([1, 0, 0])))
-                    dm[i, j, 1] = np.sqrt(f * self.distance(matrix[i, j], np.array([0, 1, 0])))
-                elif self.distance.__name__ == 'normalized_hamming_distance':
-                    dm[i, j, 0] = f * self.distance(matrix[i, j], np.array([1, 0, 0]))
-                    dm[i, j, 1] = f * self.distance(matrix[i, j], np.array([0, 1, 0]))
+                ideal = np.array([1.0, 0.0, 0.0])
+                anti = np.array([0.0, 1.0, 0.0])
+                d_pos = self.distance(matrix[i, j], ideal)
+                d_neg = self.distance(matrix[i, j], anti)
+                if self.distance.__name__ == "normalized_euclidean_distance":
+                    dm[i, j, 0] = np.sqrt(f * d_pos)
+                    dm[i, j, 1] = np.sqrt(f * d_neg)
+                elif self.distance.__name__ == "normalized_hamming_distance":
+                    dm[i, j, 0] = f * d_pos
+                    dm[i, j, 1] = f * d_neg
                 else:
-                    dm[i, j, 0] = self.distance(matrix[i, j], np.array([1, 0, 0]))
-                    dm[i, j, 1] = self.distance(matrix[i, j], np.array([0, 1, 0]))
+                    dm[i, j, 0] = d_pos
+                    dm[i, j, 1] = d_neg
+        self._log_step("distance_measures", dm, "Distances to ideal and anti-ideal")
 
-        if self.normalization.__name__ != 'minmax_normalization':
-            dm =  self.normalization(dm, types)
+        if self.normalization.__name__ != "minmax_normalization":
+            dm = np.asarray(self.normalization(dm, types), dtype=float)
+            self._log_step("normalized_distances", dm, "Normalized distance measures")
 
-        # closeness coefficient
         cw = dm[:, :, 1] / (dm[:, :, 1] + dm[:, :, 0])
+        self._log_step("closeness_coefficient", cw, "Closeness coefficient matrix")
 
-        # normalized matrix
-        if self.normalization.__name__ == 'minmax_normalization':
-            nmatrix = self.normalization(cw, types)
+        if self.normalization.__name__ == "minmax_normalization":
+            nmatrix = np.asarray(self.normalization(cw, types), dtype=float)
         else:
             nmatrix = cw
+        self._log_step("normalized_matrix", nmatrix, "Normalized closeness matrix")
 
-        # crisp weights
-        if weights.ndim == 2:
-            weights = np.array([self.score(w) for w in weights])
+        w = np.asarray(weights, dtype=float)
+        if w.ndim == 2:
+            w = np.array([self.score(x) for x in w], dtype=float)
+        self._log_step("weights", w, "Crisp criterion weights")
 
-        # theoretical intuitionistic fuzzy decision matrix
-        tdm = 1 / matrix.shape[0] * nmatrix * weights
-        tdm = np.tile(np.max(tdm, axis=0), nmatrix.shape[0]).reshape((nmatrix.shape[0], nmatrix.shape[1]))
+        tdm = np.ones((nmatrix.shape[0], nmatrix.shape[1]), dtype=float)
+        tdm = tdm * (1 / nmatrix.shape[0]) * w
+        self._log_step("theoretical_matrix", tdm, "Theoretical decision matrix")
 
-        # real evaluation matrix
-        rem = nmatrix * tdm
+        rdm = nmatrix * tdm
+        self._log_step("real_matrix", rdm, "Real decision matrix")
 
-        # gap matrix
-        gm = tdm - rem
+        gap = tdm - rdm
+        self._log_step("gap_matrix", gap, "Gap matrix (theoretical - real)")
 
-        # utility self.score
-        s = np.sum(gm, axis=1)
-        return s
+        prefs = np.sum(gap, axis=1)
+        self._log_step("preferences", prefs, "Total gap scores")
+        
+        return prefs.astype(float)

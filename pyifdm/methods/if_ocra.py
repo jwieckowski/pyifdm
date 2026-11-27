@@ -9,18 +9,13 @@ from .base import IFMCDAMethod
 from pyifdm.utils.score import chen_score_1
 
 class ifOCRA(IFMCDAMethod):
-    """
-    Intuitionistic Fuzzy OCRA (Operational Competitiveness Rating).
-    """
+    """Intuitionistic Fuzzy OCRA (Operational Competitiveness Rating)."""
 
     descending = True
     requires_mixed_types = False
 
-    def __init__(
-        self,
-        score: Callable = chen_score_1
-    ) -> None:
-        super().__init__()
+    def __init__(self, score: Callable = chen_score_1, logger=None) -> None:
+        super().__init__(logger=logger)
         self.score = score
 
     def _evaluate(
@@ -29,27 +24,33 @@ class ifOCRA(IFMCDAMethod):
         weights: np.ndarray,
         types: np.ndarray,
     ) -> np.ndarray:
-        if not isinstance(weights[0], (float, np.floating)):
-            weights = self.score(weights)
+        w = np.asarray(weights, dtype=float)
+        if w.ndim != 1:
+            w = np.asarray(self.score(w), dtype=float)
+        self._log_step("weights", w, "Crisp criterion weights")
 
-        # score matrix
-        smatrix = self.score(matrix)
+        smatrix = np.asarray(self.score(matrix), dtype=float)
+        self._log_step("score_matrix", smatrix, "Crisp score of decision matrix")
 
-        #  if performance rating
-        P, Q = [], []
+        P_rows, Q_rows = [], []
         for j in range(smatrix.shape[1]):
+            col = smatrix[:, j]
+            span = np.max(col) - np.min(col)
+            if span == 0:
+                span = 1.0
             if types[j] == 1:
-                P.append([weights[j] * ((smatrix[i, j]) - np.min(smatrix[:, j]) / (np.max(smatrix[:, j]) - np.min(smatrix[:, j]))) for i in range(smatrix.shape[0])])
+                P_rows.append([w[j] * ((col[i] - np.min(col)) / span) for i in range(smatrix.shape[0])])
             else:
-                Q.append([weights[j] * ((np.max(smatrix[:, j] - smatrix[i, j]) / (np.max(smatrix[:, j]) - np.min(smatrix[:, j]))))  for i in range(smatrix.shape[0])])
+                Q_rows.append([w[j] * ((np.max(col) - col[i]) / span) for i in range(smatrix.shape[0])])
 
-        P = np.sum(np.array(P), axis=0)
-        Q = np.sum(np.array(Q), axis=0)
+        P = np.sum(np.array(P_rows), axis=0) if P_rows else np.zeros(smatrix.shape[0])
+        Q = np.sum(np.array(Q_rows), axis=0) if Q_rows else np.zeros(smatrix.shape[0])
+        self._log_step("P", P, "Aggregate performance for profit criteria")
+        self._log_step("Q", Q, "Aggregate performance for cost criteria")
 
-        # linear performance rating
-        P -= np.min(P)
-        Q -= np.min(Q)
-
-        # overall performance rating
+        P = P - np.min(P)
+        Q = Q - np.min(Q)
         OPR = (P + Q) - np.min(P + Q)
-        return OPR
+        self._log_step("preferences", OPR, "Overall performance rating")
+        
+        return OPR.astype(float)
